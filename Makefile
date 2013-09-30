@@ -10,7 +10,7 @@ ELFPROGRAM = $(PROG).elf
 SRCS = $(PROG).c
 OBJS = $(SRCS:.c=.o)
 
-CFLAGS = -mmcu=msp430f449 -Os -g
+CFLAGS = -mmcu=msp430f449 -Os -g -Wall
 LDFLAGS = -mmcu=msp430f449
 
 .PHONY: default
