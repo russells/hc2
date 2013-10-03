@@ -7,11 +7,17 @@ LD = msp430-gcc
 OBJCOPY = msp430-objcopy
 
 ELFPROGRAM = $(PROG).elf
-SRCS = $(PROG).c
+SRCS = $(PROG).c bsp-STK449.c morse.c qpn/source/qepn.c qpn/source/qfn.c
 OBJS = $(SRCS:.c=.o)
+DEPS = $(SRCS:.c=.d)
+DEPDEPS = Makefile
 
-CFLAGS = -mmcu=msp430f449 -Os -g -Wall
+CFLAGS = -std=gnu99 -mmcu=msp430f449 -Os -g -Wall -Werror -Iqpn/include -I.
 LDFLAGS = -mmcu=msp430f449
+
+%.d: %.c $(DEPDEPS)
+	@echo DEP: $<
+	@$(CC) -E -M $(CFLAGS) $< > $@
 
 .PHONY: default
 default: $(ELFPROGRAM)
@@ -25,5 +31,10 @@ flash: $(ELFPROGRAM)
 
 .PHONY: clean
 clean:
-	rm -f $(ELFPROGRAM) $(OBJS)
+	rm -f $(ELFPROGRAM) $(OBJS) $(DEPS)
+
+# Put this late so the first .o target does not become the default.
+ifneq ($(MAKECMDGOALS),clean)
+-include $(DEPS)
+endif
 

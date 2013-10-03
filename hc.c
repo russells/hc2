@@ -1,65 +1,90 @@
 
-#include  <msp430x44x.h>
-#include  <inttypes.h>
+#include "qpn_port.h"
+#include <inttypes.h>
+#include "hc.h"
+#include "bsp.h"
 
-#define          LED_OFF            P1OUT |= BIT3
-#define          LED_ON             P1OUT &= ~BIT3
+
+Q_DEFINE_THIS_FILE;
 
 
-static void
-basic_timer1_init(void)
-{
-	BTCTL = (BTSSEL & 0) |
-		(BTHOLD & 0) |
-		BTDIV |
-		// interrupt at fCLK2/16
-		(BTIP2 & 0) | BTIP1 | BTIP0;
-	IE2 |= BTIE;
-}
+struct Hc hc;
+
+static void hc_ctor(void);
+static QState hcInitial(struct Hc *me);
+static QState hcTop(struct Hc *me);
+static QState hcLedOff(struct Hc *me);
+static QState hcLedOn(struct Hc *me);
+
+
+
+static QEvent hcQueue[4];
+
+QActiveCB const Q_ROM Q_ROM_VAR QF_active[] = {
+	{ (QActive*)0           , (QEvent*)0   , 0                   },
+	{ (QActive *) (&hc)     , hcQueue      , Q_DIM(hcQueue)      },
+};
+Q_ASSERT_COMPILE( QF_MAX_ACTIVE == Q_DIM(QF_active) - 1 );
 
 
 int main(void)
 {
-	WDTCTL = WDTPW | WDTHOLD; /* Stop the watchdog */
+ startmain:
+	BSP_init();
+	hc_ctor();
+	QF_run();
+	goto startmain;
 
-	FLL_CTL0 &= ~XTS_FLL;	/* XT1 as low-frequency */
-	_BIC_SR(OSCOFF);	/* turn on XT1 oscillator */
-
-	do {			/* wait in loop until crystal is stable */
-		IFG1 &= ~OFIFG;
-	} while (IFG1 & OFIFG);
-
-	basic_timer1_init();
-
-	P1DIR = BIT3;		/* LED output */
-
-	LED_ON;
-	__delay_cycles(1000000L);
-	LED_OFF;
-
-	_BIS_SR(GIE);		/* Enable interrupts */
-
-	while (1) {
-		__delay_cycles(500000L); /* 0.5 second wait, assuming a 1MHz
-					    clock. */
-		//LED_ON;
-		__delay_cycles(500000L);
-		//LED_OFF;
-	}
 	return 0;
 }
 
 
-static void
-__attribute__((__interrupt__(BASICTIMER_VECTOR)))
-isr_BASICTIMER(void)
+static void hc_ctor(void)
 {
-	static uint8_t onoff = 0;
-	if (onoff) {
-		LED_ON;
-		onoff = 0;
-	} else {
-		LED_OFF;
-		onoff = 1;
+	QActive_ctor((QActive*)(&hc), (QStateHandler)(&hcInitial));
+}
+
+
+static QState hcInitial(struct Hc *me)
+{
+	return Q_TRAN(hcLedOff);
+}
+
+
+static QState hcTop(struct Hc *me)
+{
+	switch (Q_SIG(me)) {
+	case WATCHDOG_SIGNAL:
+		// TODO: watchdog reset
+		return Q_HANDLED();
 	}
+	return Q_SUPER(QHsm_top);
+}
+
+
+static QState hcLedOff(struct Hc *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		BSP_led_off();
+		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND/2);
+		return Q_HANDLED();
+	case Q_TIMEOUT_SIG:
+		return Q_TRAN(hcLedOn);
+	}
+	return Q_SUPER(hcTop);
+}
+
+
+static QState hcLedOn(struct Hc *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		BSP_led_on();
+		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND/4);
+		return Q_HANDLED();
+	case Q_TIMEOUT_SIG:
+		return Q_TRAN(hcLedOff);
+	}
+	return Q_SUPER(hcTop);
 }
