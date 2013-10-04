@@ -7,7 +7,7 @@ LD = msp430-gcc
 OBJCOPY = msp430-objcopy
 
 ELFPROGRAM = $(PROG).elf
-SRCS = $(PROG).c bsp-STK449.c morse.c qpn/source/qepn.c qpn/source/qfn.c
+SRCS = $(PROG).c bsp-449STK2.c morse.c qpn/source/qepn.c qpn/source/qfn.c
 OBJS = $(SRCS:.c=.o)
 DEPS = $(SRCS:.c=.d)
 DEPDEPS = Makefile
