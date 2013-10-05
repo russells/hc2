@@ -66,8 +66,8 @@ static QState hcLedOff(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		BSP_led_off();
-		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND/2);
+		//BSP_led_off();
+		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
 		return Q_TRAN(hcLedOn);
@@ -80,8 +80,8 @@ static QState hcLedOn(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		BSP_led_on();
-		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND/4);
+		//BSP_led_on();
+		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
 		return Q_TRAN(hcLedOff);

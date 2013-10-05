@@ -4,22 +4,34 @@
 #include <msp430.h>
 
 
+/** Enter the appropriate MSP430 low power mode.  We must also enable
+    interrupts.  We can't use LPM4 as that stops all clocks so the basic timer
+    doesn't work. */
+#define ENTER_LPM() _BIS_SR(GIE + LPM3_bits)
+
+
+/** Exit the MSP430 low power mode.  This must match the bits in
+    ENTER_LPM(). */
+#define EXIT_LPM() _BIC_SR_IRQ(GIE + LPM3_bits)
+
+
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
 {
 	morse_assert(file,line);
 }
 
 
+/** Initialise the basic timer but don't turn on its interrupt. */
 static void
 basic_timer1_init(void)
 {
-	// Initialise the basic timer but don't turn on its interrupt.
+	/* Interrupt at 1Hz.  BTSSEL=0 (clock source is ACLK at 32768Hz),
+	   BTDIV=1 (fCLK2 = ACLK/256), BTIPx=110 (interrupt at fCLK2/128).
+	   (32768/256)/128 = 1.  */
 	BTCTL = (BTSSEL & 0) |
 		(BTHOLD & 0) |
 		BTDIV |
-		// TODO: work out the interrupt rate.
-		// interrupt at fCLK2/16
-		(BTIP2 & 0) | BTIP1 | BTIP0;
+		BTIP2 | BTIP1 | (BTIP0 & 0);
 }
 
 
@@ -40,6 +52,10 @@ void BSP_init(void)
 	basic_timer1_init();
 
 	P1DIR = BIT3;		/* LED output */
+
+	BSP_led_on();
+	__delay_cycles(2000000L); /* Wait at start so we can see resets. */
+	BSP_led_off();
 }
 
 
@@ -52,8 +68,8 @@ void QF_onStartup(void)
 
 void QF_onIdle(void)
 {
-	// TODO: low power mode.
-	_BIS_SR(GIE);		/* Enable interrupts */
+	BSP_led_off();
+	ENTER_LPM();
 }
 
 
@@ -73,7 +89,9 @@ static void
 __attribute__((__interrupt__(BASICTIMER_VECTOR)))
 isr_BASICTIMER(void)
 {
+	BSP_led_on();
 	QF_tick();
+	EXIT_LPM();
 }
 
 
