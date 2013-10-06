@@ -45,6 +45,7 @@ static void hc_ctor(void)
 	QActive_ctor((QActive*)(&hc), (QStateHandler)(&hcInitial));
 	//hc.lcdchar = 0;
 	hc.counter = 0;
+	hc.displaynumber = 0;
 }
 
 
@@ -79,10 +80,14 @@ static QState lcdSequence(struct Hc *me)
 		}
 		*/
 
-		lcd_showdigit(me->counter);
+		lcd_showdigit(me->counter, me->displaynumber);
 		me->counter ++;
 		if (me->counter > 9) {
 			me->counter = 0;
+			me->displaynumber ++;
+			if (me->displaynumber > 6) {
+				me->displaynumber = 0;
+			}
 		}
 		//BSP_led_off();
 		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND);

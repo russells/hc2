@@ -7,6 +7,7 @@ struct Hc {
 	QActive super;
 	//uint8_t lcdchar;
 	uint8_t counter;
+	uint8_t displaynumber;
 };
 
 
