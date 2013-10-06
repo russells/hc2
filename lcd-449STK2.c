@@ -46,7 +46,7 @@ void lcd_show(const char *s)
 }
 
 
-void lcd_showdigit(uint8_t digit, uint8_t pos)
+void lcd_showchar(char ch, uint8_t pos)
 {
 	uint8_t index;
 	volatile char *lcdm = LCDMEM - 1; /* LCD register names are 1-based. */
@@ -80,44 +80,75 @@ void lcd_showdigit(uint8_t digit, uint8_t pos)
 	}
 
 	lcd_show("");
-	switch (digit) {
-	case 0:
-		lcdm[index+1] = 0x60;
-		lcdm[index  ] = 0xf0;
+	switch (ch) {
+	case '0':
+		lcdm[index+1] = 0x62;
+		lcdm[index  ] = 0xf4;
 		break;
-	case 1:
+	case '1':
 		lcdm[index  ] = 0x60;
 		break;
-	case 2:
+	case '2':
 		lcdm[index+1] = 0x24;
 		lcdm[index  ] = 0xd2;
 		break;
-	case 3:
+	case '3':
 		lcdm[index+1] = 0x04;
 		lcdm[index  ] = 0xf2;
 		break;
-	case 4:
+	case '4':
 		lcdm[index+1] = 0x44;
 		lcdm[index  ] = 0x62;
 		break;
-	case 5:
+	case '5':
 		lcdm[index+1] = 0x44;
-		lcdm[index  ] = 0xb2;
+		lcdm[index  ] = 0x91;
 		break;
-	case 6:
+	case '6':
 		lcdm[index+1] = 0x64;
 		lcdm[index  ] = 0xb2;
 		break;
-	case 7:
+	case '7':
 		lcdm[index  ] = 0xe0;
 		break;
-	case 8:
+	case '8':
 		lcdm[index+1] = 0x64;
 		lcdm[index  ] = 0xf2;
 		break;
-	case 9:
+	case '9':
 		lcdm[index+1] = 0x44;
 		lcdm[index  ] = 0xf2;
+		break;
+	case 'H':
+		lcdm[index+1] = 0x64;
+		lcdm[index  ] = 0x62;
+		break;
+	case 'O':
+		lcdm[index+1] = 0x60;
+		lcdm[index  ] = 0xf0;
+		break;
+	case 'T':
+		lcdm[index+1] = 0x01;
+		lcdm[index  ] = 0x88;
+		break;
+	case 'S':
+		lcdm[index+1] = 0x44;
+		lcdm[index  ] = 0xb2;
+		break;
+	case 'C':
+		lcdm[index+1] = 0x60;
+		lcdm[index  ] = 0x90;
+		break;
+	case 'L':
+		lcdm[index+1] = 0x60;
+		lcdm[index  ] = 0x10;
+		break;
+	case 'D':
+		lcdm[index+1] = 0x01;
+		lcdm[index  ] = 0xf8;
+		break;
+	default:
+		Q_ASSERT(0);
 		break;
 	}
 }

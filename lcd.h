@@ -5,6 +5,6 @@
 
 void lcd_init(void);
 void lcd_show(const char *s);
-void lcd_showdigit(uint8_t digit, uint8_t pos);
+void lcd_showchar(char ch, uint8_t pos);
 
 #endif

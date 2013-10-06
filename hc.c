@@ -44,8 +44,8 @@ static void hc_ctor(void)
 {
 	QActive_ctor((QActive*)(&hc), (QStateHandler)(&hcInitial));
 	//hc.lcdchar = 0;
-	hc.counter = 0;
-	hc.displaynumber = 0;
+	hc.chindex = 0;
+	hc.digit = 0;
 }
 
 
@@ -68,6 +68,8 @@ static QState hcTop(struct Hc *me)
 
 static QState lcdSequence(struct Hc *me)
 {
+	static const char chs[] = "HOTSCOLDS0123456789";
+
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		//lcd_show("Off");
@@ -80,13 +82,13 @@ static QState lcdSequence(struct Hc *me)
 		}
 		*/
 
-		lcd_showdigit(me->counter, me->displaynumber);
-		me->counter ++;
-		if (me->counter > 9) {
-			me->counter = 0;
-			me->displaynumber ++;
-			if (me->displaynumber > 6) {
-				me->displaynumber = 0;
+		lcd_showchar(chs[me->chindex], me->digit);
+		me->chindex ++;
+		if (! chs[me->chindex]) {
+			me->chindex = 0;
+			me->digit ++;
+			if (me->digit > 6) {
+				me->digit = 0;
 			}
 		}
 		//BSP_led_off();
