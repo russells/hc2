@@ -1,6 +1,7 @@
 
 #include "qpn_port.h"
 #include <inttypes.h>
+#include <string.h>
 #include "hc.h"
 #include "bsp.h"
 #include "lcd.h"
@@ -43,9 +44,8 @@ int main(void)
 static void hc_ctor(void)
 {
 	QActive_ctor((QActive*)(&hc), (QStateHandler)(&hcInitial));
-	//hc.lcdchar = 0;
-	hc.chindex = 0;
-	hc.digit = 0;
+	hc.hot = 1;
+	hc.temperature = 0;
 }
 
 
@@ -68,30 +68,29 @@ static QState hcTop(struct Hc *me)
 
 static QState lcdSequence(struct Hc *me)
 {
-	static const char chs[] = "HOTSCOLDS0123456789";
+	static const char hots [] = "   HOTS";
+	static const char colds[] = "  COLDS";
+	char display[8];
 
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		//lcd_show("Off");
-		/*
-		lcd_show((char*)(&(me->lcdchar)));
-		if (! me->lcdchar) {
-			me->lcdchar = 0x01;
+		lcd_clear();
+		if (me->temperature > 9) {
+			me->temperature = 0;
+			me->hot = ! me->hot;
+		}
+		if (me->hot) {
+			strncpy(display, hots, 8);
 		} else {
-			me->lcdchar <<= 1;
+			strncpy(display, colds, 8);
 		}
-		*/
-
-		lcd_showchar(chs[me->chindex], me->digit);
-		me->chindex ++;
-		if (! chs[me->chindex]) {
-			me->chindex = 0;
-			me->digit ++;
-			if (me->digit > 6) {
-				me->digit = 0;
-			}
+		display[7] = '\0';
+		display[0] = me->temperature + '0';
+		if (1 == me->temperature) {
+			display[6] = ' ';
 		}
-		//BSP_led_off();
+		lcd_showstring(display, 0);
+		me->temperature ++;
 		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:

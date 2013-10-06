@@ -46,6 +46,12 @@ void lcd_show(const char *s)
 }
 
 
+void lcd_clear(void)
+{
+	lcd_show("");
+}
+
+
 void lcd_showchar(char ch, uint8_t pos)
 {
 	uint8_t index;
@@ -79,7 +85,6 @@ void lcd_showchar(char ch, uint8_t pos)
 		break;
 	}
 
-	lcd_show("");
 	switch (ch) {
 	case '0':
 		lcdm[index+1] = 0x62;
@@ -147,8 +152,22 @@ void lcd_showchar(char ch, uint8_t pos)
 		lcdm[index+1] = 0x01;
 		lcdm[index  ] = 0xf8;
 		break;
+	case ' ':
+		lcdm[index+1] = 0x00;
+		lcdm[index  ] = 0x00;
+		break;
 	default:
 		Q_ASSERT(0);
 		break;
+	}
+}
+
+
+void lcd_showstring(const char *s, uint8_t startpos)
+{
+	while (*s) {
+		lcd_showchar(*s, startpos);
+		s++;
+		startpos++;
 	}
 }
