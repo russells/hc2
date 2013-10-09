@@ -5,6 +5,7 @@
 #include "hc.h"
 #include "bsp.h"
 #include "lcd.h"
+#include "serial.h"
 
 
 Q_DEFINE_THIS_FILE;
@@ -32,8 +33,11 @@ int main(void)
 {
  startmain:
 	BSP_init();
+	serial_init();
+	SERIALSTR("Hots'n'Colds\r\n");
 	lcd_init();
 	hc_ctor();
+	SERIALSTR("Let's go...\r\n");
 	QF_run();
 	goto startmain;
 
@@ -89,6 +93,8 @@ static QState lcdSequence(struct Hc *me)
 		if (1 == me->temperature) {
 			display[6] = ' ';
 		}
+		serial_send(display);
+		SERIALSTR("\r\n");
 		lcd_showstring(display, 0);
 		me->temperature ++;
 		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND);
@@ -107,6 +113,7 @@ static QState lcdAllOn(struct Hc *me)
 		//lcd_show("On");
 		lcd_show("\xff");
 		//BSP_led_on();
+		SERIALSTR("all on\r\n");
 		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:

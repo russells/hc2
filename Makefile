@@ -10,6 +10,7 @@ ELFPROGRAM = $(PROG).elf
 SRCS = $(PROG).c bsp-449STK2.c \
 	lcd-449STK2.c lcd-449STK2-chars.c \
 	morse.c \
+	serial-MSP430F449.c \
 	qpn/source/qepn.c qpn/source/qfn.c
 OBJS = $(SRCS:.c=.o)
 DEPS = $(SRCS:.c=.d)
