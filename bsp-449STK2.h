@@ -13,8 +13,9 @@
 #define ENTER_LPM() _BIS_SR(GIE + LPM3_bits)
 
 
-/** Exit the MSP430 low power mode.  This must match the bits in
-    ENTER_LPM(). */
-#define EXIT_LPM() _BIC_SR_IRQ(GIE + LPM3_bits)
+/** Exit the MSP430 low power mode.  This must match the bits in ENTER_LPM(),
+    except that we can't reset GIE as that will permanently turn off
+    interrupts. */
+#define EXIT_LPM() _BIC_SR_IRQ(LPM3_bits)
 
 #endif
