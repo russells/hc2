@@ -29,7 +29,7 @@
 #define qpn_port_h
 
 #define Q_NFSM
-#define Q_PARAM_SIZE            0
+#define Q_PARAM_SIZE            1
 #define QF_TIMEEVT_CTR_SIZE     1
 
 /* maximum # active objects--must match EXACTLY the QF_active[] definition  */

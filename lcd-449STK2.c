@@ -2,6 +2,7 @@
 #include "qpn_port.h"
 #include <msp430.h>
 #include <stdint.h>
+#include "serial.h"
 
 Q_DEFINE_THIS_FILE;
 
@@ -56,29 +57,17 @@ void lcd_showchar(char ch, uint8_t pos)
 {
 	uint8_t index;
 	volatile char *lcdm = LCDMEM - 1; /* LCD register names are 1-based. */
+	uint8_t lcdm1 = 0xff;
+	uint8_t lcdm0 = 0xff;
 
 	switch (pos) {
-	case 0:
-		index = 19;
-		break;
-	case 1:
-		index = 17;
-		break;
-	case 2:
-		index = 15;
-		break;
-	case 3:
-		index = 13;
-		break;
-	case 4:
-		index = 11;
-		break;
-	case 5:
-		index = 9;
-		break;
-	case 6:
-		index = 7;
-		break;
+	case 0: index = 19; break;
+	case 1: index = 17; break;
+	case 2: index = 15; break;
+	case 3: index = 13; break;
+	case 4: index = 11; break;
+	case 5: index = 9; break;
+	case 6: index = 7; break;
 	default:
 		index = 77;
 		Q_ASSERT(0);
@@ -86,88 +75,51 @@ void lcd_showchar(char ch, uint8_t pos)
 	}
 
 	switch (ch) {
-	case '0':
-		lcdm[index+1] = 0x62;
-		lcdm[index  ] = 0xf4;
-		break;
-	case '1':
-		lcdm[index  ] = 0x60;
-		break;
-	case '2':
-		lcdm[index+1] = 0x24;
-		lcdm[index  ] = 0xd2;
-		break;
-	case '3':
-		lcdm[index+1] = 0x04;
-		lcdm[index  ] = 0xf2;
-		break;
-	case '4':
-		lcdm[index+1] = 0x44;
-		lcdm[index  ] = 0x62;
-		break;
-	case '5':
-		lcdm[index+1] = 0x44;
-		lcdm[index  ] = 0x91;
-		break;
-	case '6':
-		lcdm[index+1] = 0x64;
-		lcdm[index  ] = 0xb2;
-		break;
-	case '7':
-		lcdm[index  ] = 0xe0;
-		break;
-	case '8':
-		lcdm[index+1] = 0x64;
-		lcdm[index  ] = 0xf2;
-		break;
-	case '9':
-		lcdm[index+1] = 0x44;
-		lcdm[index  ] = 0xf2;
-		break;
-	case 'H':
-		lcdm[index+1] = 0x64;
-		lcdm[index  ] = 0x62;
-		break;
-	case 'O':
-		lcdm[index+1] = 0x60;
-		lcdm[index  ] = 0xf0;
-		break;
-	case 'T':
-		lcdm[index+1] = 0x01;
-		lcdm[index  ] = 0x88;
-		break;
-	case 'S':
-		lcdm[index+1] = 0x44;
-		lcdm[index  ] = 0xb2;
-		break;
-	case 'C':
-		lcdm[index+1] = 0x60;
-		lcdm[index  ] = 0x90;
-		break;
-	case 'L':
-		lcdm[index+1] = 0x60;
-		lcdm[index  ] = 0x10;
-		break;
-	case 'D':
-		lcdm[index+1] = 0x01;
-		lcdm[index  ] = 0xf8;
-		break;
-	case ' ':
-		lcdm[index+1] = 0x00;
-		lcdm[index  ] = 0x00;
-		break;
+	case '0': lcdm1 = 0x62; lcdm0 = 0xf4; break;
+	case '1': lcdm1 = 0x00; lcdm0 = 0x60; break;
+	case '2': lcdm1 = 0x24; lcdm0 = 0xd2; break;
+	case '3': lcdm1 = 0x04; lcdm0 = 0xf2; break;
+	case '4': lcdm1 = 0x44; lcdm0 = 0x62; break;
+	case '5': lcdm1 = 0x44; lcdm0 = 0x91; break;
+	case '6': lcdm1 = 0x64; lcdm0 = 0xb2; break;
+	case '7': lcdm1 = 0x00; lcdm0 = 0xe0; break;
+	case '8': lcdm1 = 0x64; lcdm0 = 0xf2; break;
+	case '9': lcdm1 = 0x44; lcdm0 = 0xf2; break;
+	case 'H': lcdm1 = 0x64; lcdm0 = 0x62; break;
+	case 'O': lcdm1 = 0x60; lcdm0 = 0xf0; break;
+	case 'T': lcdm1 = 0x01; lcdm0 = 0x88; break;
+	case 'S': lcdm1 = 0x44; lcdm0 = 0xb2; break;
+	case 'C': lcdm1 = 0x60; lcdm0 = 0x90; break;
+	case 'L': lcdm1 = 0x60; lcdm0 = 0x10; break;
+	case 'D': lcdm1 = 0x01; lcdm0 = 0xf8; break;
+	case ' ': lcdm1 = 0x00; lcdm0 = 0x00; break;
+	case 'N': lcdm1 = 0x68; lcdm0 = 0x61; break;
+	case 'R': lcdm1 = 0x64; lcdm0 = 0xc3; break;
+	case 'M': lcdm1 = 0x68; lcdm0 = 0x64; break;
+	case 'A': lcdm1 = 0x64; lcdm0 = 0xe2; break;
 	default:
 		Q_ASSERT(0);
 		break;
 	}
+	serial_send_hex_int(lcdm1);
+	serial_send_char(',');
+	serial_send_hex_int(lcdm0);
+	serial_send_char(' ');
+	lcdm[index+1] = lcdm1;
+	lcdm[index  ] = lcdm0;
 }
 
 
 void lcd_showstring(const char *s, uint8_t startpos)
 {
+	SERIALSTR("S: \"");
+	serial_send(s);
+	SERIALSTR("\"\r\n");
+	SERIALSTR("-- ");
 	while (*s) {
 		lcd_showchar(*s, startpos);
 		s++;
 		startpos++;
 	}
+	SERIALSTR("\r\n");
 }

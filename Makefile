@@ -35,13 +35,18 @@ default: $(ELFPROGRAM)
 $(ELFPROGRAM): $(OBJS)
 	$(LD) $(LDFLAGS) -o $(ELFPROGRAM) $(OBJS)
 
+bsp-449STK2.c: bsp-449STK2-temperature-scale.inc
+
+bsp-449STK2-temperature-scale.inc: bsp-449STK2-temperature-scale-creator.py
+	./$< > $@
+
 .PHONY: flash
 flash: $(ELFPROGRAM)
 	mspdebug -j olimex "prog $(ELFPROGRAM)"
 
 .PHONY: clean
 clean:
-	rm -f $(ELFPROGRAM) $(OBJS) $(DEPS)
+	rm -f $(ELFPROGRAM) $(OBJS) $(DEPS) bsp-449STK2-temperature-scale.inc
 
 # Put this late so the first .o target does not become the default.
 ifneq ($(MAKECMDGOALS),clean)
