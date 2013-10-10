@@ -3,6 +3,8 @@
 #include "qpn_port.h"
 #include <msp430.h>
 
+#ifdef SERIAL
+
 void serial_init(void);
 int  serial_send(const char *s);
 int  serial_send_int(unsigned int n);
@@ -20,5 +22,19 @@ int  serial_send_char(char c);
 		static const char ss[] = s;	\
 		serial_send(ss);		\
 	} while (0)
+
+#else
+
+#define serial_init();
+#define  serial_send(s);
+#define  serial_send_int(n);
+#define  serial_send_hex_int(x);
+#define  serial_send_char(c);
+//#define serial_assert(file, line)
+//#define serial_assert_nostop(file, line)
+//#define serial_drain()
+#define SERIALSTR(s)
+
+#endif
 
 #endif

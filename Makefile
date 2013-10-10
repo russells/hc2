@@ -10,13 +10,19 @@ ELFPROGRAM = $(PROG).elf
 SRCS = $(PROG).c bsp-449STK2.c \
 	lcd-449STK2.c lcd-449STK2-chars.c \
 	morse.c \
-	serial-MSP430F449.c \
-	qpn/source/qepn.c qpn/source/qfn.c
+	qpn/source/qepn.c qpn/source/qfn.c \
+
+ifeq ($(SERIAL),yes)
+SRCS += serial-MSP430F449.c
+endif
 OBJS = $(SRCS:.c=.o)
 DEPS = $(SRCS:.c=.d)
 DEPDEPS = Makefile
 
 CFLAGS = -std=gnu99 -mmcu=msp430f449 -Os -g -Wall -Werror -Iqpn/include -I.
+ifeq ($(SERIAL),yes)
+CFLAGS += -DSERIAL
+endif
 LDFLAGS = -mmcu=msp430f449
 
 %.d: %.c $(DEPDEPS)
