@@ -8,7 +8,7 @@ OBJCOPY = msp430-objcopy
 
 ELFPROGRAM = $(PROG).elf
 SRCS = $(PROG).c bsp-449STK2.c \
-	lcd-449STK2.c lcd-449STK2-chars.c \
+	lcd-449STK2.c \
 	morse.c \
 	qpn/source/qepn.c qpn/source/qfn.c \
 
