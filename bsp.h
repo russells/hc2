@@ -7,6 +7,10 @@
 #define BSP_TICKS_PER_SECOND 1
 
 void BSP_init(void);
+
+void BSP_fast_timer(void);
+void BSP_slow_timer(void);
+
 void BSP_led_on(void);
 void BSP_led_off(void);
 
@@ -17,6 +21,7 @@ void BSP_stop_everything(void);
 void BSP_do_reset(void);
 
 void BSP_start_temperature_reading(void);
+void BSP_get_temperature(void);
 
 #ifdef __MSP430__
 #define BSP_delay_ms(ms) __delay_cycles(1000L*ms)

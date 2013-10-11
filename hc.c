@@ -16,8 +16,9 @@ struct Hc hc;
 static void hc_ctor(void);
 static QState hcInitial(struct Hc *me);
 static QState hcTop(struct Hc *me);
-static QState lcdSequence(struct Hc *me);
-static QState lcdAllOn(struct Hc *me);
+static QState hcPause(struct Hc *me);
+static QState hcTemperature(struct Hc *me);
+static QState hcGetTemperature(struct Hc *me);
 
 static void show_temperature(struct Hc *me, int8_t ti);
 
@@ -50,85 +51,80 @@ int main(void)
 static void hc_ctor(void)
 {
 	QActive_ctor((QActive*)(&hc), (QStateHandler)(&hcInitial));
-	hc.hot = 1;
-	hc.temperature = 0;
 }
 
 
 static QState hcInitial(struct Hc *me)
 {
-	return Q_TRAN(lcdAllOn);
+	return Q_TRAN(hcTemperature);
 }
 
 
 static QState hcTop(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		lcd_clear();
+		break;
 	case WATCHDOG_SIGNAL:
 		// TODO: watchdog reset
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
-		//Q_ASSERT(0);
-		break;
+		SERIALSTR("hcTop: TS\r\n");
+		return Q_HANDLED();
 	}
 	return Q_SUPER(QHsm_top);
 }
 
 
-static QState lcdSequence(struct Hc *me)
+static QState hcPause(struct Hc *me)
 {
-	static const char hots [] = "   HOTS";
-	static const char colds[] = "  COLDS";
-	char display[8];
-
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		lcd_clear();
-		if (me->temperature > 9) {
-			me->temperature = 0;
-			me->hot = ! me->hot;
-		}
-		if (me->hot) {
-			strncpy(display, hots, 8);
-		} else {
-			strncpy(display, colds, 8);
-		}
-		display[7] = '\0';
-		display[0] = me->temperature + '0';
-		if (1 == me->temperature) {
-			display[6] = ' ';
-		}
-		serial_send(display);
-		SERIALSTR("\r\n");
-		lcd_showstring(display, 0);
-		me->temperature ++;
-		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND);
-		BSP_start_temperature_reading();
-		return Q_HANDLED();
-	case TEMPERATURE_SIGNAL:
-		show_temperature(me, (int8_t) Q_PAR(me));
+		SERIALSTR("hcPause\r\n");
+		BSP_slow_timer();
+		QActive_arm((QActive*)me, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
-		return Q_TRAN(lcdAllOn);
+		return Q_TRAN(hcTemperature);
 	}
 	return Q_SUPER(hcTop);
 }
 
 
-static QState lcdAllOn(struct Hc *me)
+static QState hcTemperature(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		//lcd_show("On");
-		lcd_show("\xff");
-		//BSP_led_on();
-		SERIALSTR("all on\r\n");
-		QActive_arm((QActive*)me, BSP_TICKS_PER_SECOND);
+		SERIALSTR("hcTemp\r\n");
+		BSP_fast_timer();
+		// Start reading the temperature.
+		BSP_start_temperature_reading();
+		// If we time out, go back to just waiting.
+		QActive_arm((QActive*)me, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
-		return Q_TRAN(lcdSequence);
+		return Q_TRAN(hcGetTemperature);
 	}
 	return Q_SUPER(hcTop);
+}
+
+
+static QState hcGetTemperature(struct Hc *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		SERIALSTR("hcGet\r\n");
+		BSP_get_temperature();
+		QActive_arm((QActive*)me, 2);
+		return Q_HANDLED();
+	case TEMPERATURE_SIGNAL:
+		show_temperature(me, (int8_t) Q_PAR(me));
+		return Q_TRAN(hcPause);
+	case Q_TIMEOUT_SIG:
+		return Q_TRAN(hcPause);
+	}
+	return Q_SUPER(hcTemperature);
 }
 
 

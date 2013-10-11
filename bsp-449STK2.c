@@ -26,13 +26,45 @@ void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
 static void
 basic_timer1_init(void)
 {
-	/* Interrupt at 1Hz.  BTSSEL=0 (clock source is ACLK at 32768Hz),
-	   BTDIV=1 (fCLK2 = ACLK/256), BTIPx=110 (interrupt at fCLK2/128).
-	   (32768/256)/128 = 1.  */
+	/* Interrupt at 0.5Hz.  BTSSEL=0 (clock source is ACLK at 32768Hz),
+	   BTDIV=1 (fCLK2 = ACLK/256), BTIPx=111 (interrupt at fCLK2/256).
+	   (32768/256)/256 = 0.5.  */
 	BTCTL = (BTSSEL & 0) |
 		(BTHOLD & 0) |
 		BTDIV |
-		BTIP2 | BTIP1 | (BTIP0 & 0);
+		BTIP2 | BTIP1 | BTIP0;
+}
+
+
+static void basic_timer1_rate(uint8_t rate)
+{
+	uint8_t btctl;
+
+	BTCTL |= BTHOLD;	/* Stop the timer. */
+	BTCNT1 = 0;		/* Reset the counters. */
+	BTCNT2 = 0;
+	btctl = BTCTL;
+	/* Reset the BTIPx bits.*/
+	btctl &= ~(BTIP2 | BTIP2 | BTIP0);
+	btctl |= rate;		/* Now set the desired BTIPx bits. */
+	BTCTL = btctl;
+	BTCTL &= ~(BTHOLD);	/* Restart the timer. */
+}
+
+
+void BSP_fast_timer(void)
+{
+	/* BTIPx=001, fCLK2/2 = 32Hz, period = 31.25ms.  The ADC reference
+	 wants 17ms to stabilise, so the next shorter period (15.625ms) is too
+	 short. */
+	basic_timer1_rate(0b001);
+}
+
+
+void BSP_slow_timer(void)
+{
+	// BTIPx=111, fCLK2/256 = 0.5HZ, period = 2s
+	basic_timer1_rate(0b111);
 }
 
 
@@ -170,6 +202,14 @@ void BSP_start_temperature_reading(void)
 		| (INCH3) | (INCH2 & 0) | (INCH1) | (INCH0 & 0);
 	/* Reset all pending ADC12 interrupts. */
 	ADC12IFG = 0;
+	/* No more work here, as we need to wait for the reference to
+	   stabilise.  The main QHsm will wiat an appropriate time, and call
+	   BSP_get_temperature() to retrieve the reading. */
+}
+
+
+void BSP_get_temperature(void)
+{
 	/* Wait for the voltage reference to stabilise. */
 	__delay_cycles(17000);	/* FIXME do this with an event? */
 	/* Enable our interrupt. */
@@ -204,6 +244,10 @@ isr_ADC12(void)
 	QActive_postISR((QActive*)(&hc), TEMPERATURE_SIGNAL, temperature);
 	ADC12IFG = 0;
 	ADC12IE = 0;
+
+	/* Turn off the ADC.  ENC first, so the other bits can be altered. */
+	ADC12CTL0 &= ~(ENC);
+	ADC12CTL0 = 0;
 
 	EXIT_LPM();
 }

@@ -101,10 +101,10 @@ void lcd_showchar(char ch, uint8_t pos)
 		Q_ASSERT(0);
 		break;
 	}
-	serial_send_hex_int(lcdm1);
-	serial_send_char(',');
-	serial_send_hex_int(lcdm0);
-	serial_send_char(' ');
+	//serial_send_hex_int(lcdm1);
+	//serial_send_char(',');
+	//serial_send_hex_int(lcdm0);
+	//serial_send_char(' ');
 	lcdm[index+1] = lcdm1;
 	lcdm[index  ] = lcdm0;
 }
@@ -112,14 +112,14 @@ void lcd_showchar(char ch, uint8_t pos)
 
 void lcd_showstring(const char *s, uint8_t startpos)
 {
-	SERIALSTR("S: \"");
-	serial_send(s);
-	SERIALSTR("\"\r\n");
-	SERIALSTR("-- ");
+	//SERIALSTR("S: \"");
+	//serial_send(s);
+	//SERIALSTR("\"\r\n");
+	//SERIALSTR("-- ");
 	while (*s) {
 		lcd_showchar(*s, startpos);
 		s++;
 		startpos++;
 	}
-	SERIALSTR("\r\n");
+	//SERIALSTR("\r\n");
 }
