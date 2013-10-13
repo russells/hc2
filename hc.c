@@ -37,7 +37,7 @@ int main(void)
  startmain:
 	BSP_init();
 	serial_init();
-	SERIALSTR("Hots'n'Colds\r\n");
+	SERIALSTR("\r\n\r\n*** Hots and Colds ***\r\n");
 	lcd_init();
 	hc_ctor();
 	SERIALSTR("Let's go...\r\n");
