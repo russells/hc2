@@ -18,6 +18,14 @@ static int8_t convert_adc_to_temperature(uint16_t adc);
 
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
 {
+	BSP_stop_everything();
+	serial_drain();
+	serial_send("ASSERT: ");
+	serial_send(file);
+	serial_send_char(':');
+	serial_send_int(line);
+	serial_send("\r\n");
+	serial_drain();
 	morse_assert(file,line);
 }
 

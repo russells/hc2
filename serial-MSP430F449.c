@@ -2,6 +2,9 @@
 #include "bsp-449STK2.h"
 
 
+Q_DEFINE_THIS_FILE;
+
+
 #define SEND_BUFFER_SIZE 120
 static char sendbuffer[SEND_BUFFER_SIZE];
 static uint8_t sendhead;
@@ -204,6 +207,48 @@ int serial_send_hex_int(unsigned int x)
 	if (sr & GIE)
 		_BIS_SR(GIE);
 	return sent;
+}
+
+
+void serial_drain(void)
+{
+	uint16_t sr;
+
+	/* The thing is turned off! */
+	if (U1CTL & SWRST) {
+		return;
+	}
+
+	sr = __read_status_register();
+	if (sr & GIE) {
+		/* Interrupts are on, so wait for the interrupt code to send
+		   everything. */
+		uint8_t counter = 0;
+		while (sendhead != sendtail) {
+			/* A character takess ~1.04ms at 9600 baud, so delay
+			   slightly longer than that so we can count
+			   characters.  Assume a 1MHz clock. */
+			__delay_cycles(1100);
+			counter ++;
+			/* If we have sent more than a buffer's worth of
+			   characters, we've been her too long. */
+			Q_ASSERT( counter < SEND_BUFFER_SIZE );
+		}
+	} else {
+		/* Interrupts off, stuff characters in the transmit buffer. */
+		char c;
+
+		while (sendhead != sendtail) {
+			c = sendbuffer[sendtail];
+			sendtail++;
+			if (sendtail >= SEND_BUFFER_SIZE)
+				sendtail = 0;
+			while ( ! (U1TCTL & TXEPT) )
+				;       /* Wait for buffer ready. */
+			U1TXBUF = c;
+		}
+	}
+
 }
 
 

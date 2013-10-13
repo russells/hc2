@@ -12,7 +12,7 @@ int  serial_send_hex_int(unsigned int x);
 int  serial_send_char(char c);
 //void serial_assert(char const Q_ROM * const Q_ROM_VAR file, int line);
 //void serial_assert_nostop(char const Q_ROM * const Q_ROM_VAR file, int line);
-//void serial_drain(void);
+void serial_drain(void);
 
 /**
  * Send a constant string (stored in ROM).
@@ -32,7 +32,7 @@ int  serial_send_char(char c);
 #define  serial_send_char(c);
 //#define serial_assert(file, line)
 //#define serial_assert_nostop(file, line)
-//#define serial_drain()
+#define serial_drain()
 #define SERIALSTR(s)
 
 #endif
