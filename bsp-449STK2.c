@@ -239,13 +239,26 @@ isr_ADC12(void)
 {
 	uint16_t adc;
 	int8_t temperature;
+	static uint16_t previous_adc = 0x0002;
+	static int8_t previous_temperature = 0;
 
 	//Q_ASSERT(0); // yes
 
 	adc = ADC12MEM10;
-	temperature = convert_adc_to_temperature(adc);
 	SERIALSTR("A: ");
 	serial_send_int(adc);
+	/* The ADC value must move by at least two LSB before we regard it as
+	   having changed.  This reduces jitter in the temperature readings. */
+	if (abs(adc - previous_adc) >= 2) {
+		temperature = convert_adc_to_temperature(adc);
+		previous_temperature = temperature;
+		previous_adc = adc;
+	} else {
+		temperature = previous_temperature;
+		SERIALSTR("(");
+		serial_send_int(previous_adc);
+		SERIALSTR(")");
+	}
 	serial_send_char(':');
 	serial_send_int(temperature);
 	SERIALSTR("\r\n");
