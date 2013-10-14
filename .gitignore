@@ -2,4 +2,5 @@
 *.o
 hc.elf
 tmp
+bsp-449STK2-temperature-scale.h
 bsp-449STK2-temperature-scale.inc

@@ -2,10 +2,17 @@
 #define hc_h_INCLUDED
 
 #include "qpn_port.h"
+#include <limits.h>
 
 struct Hc {
 	QActive super;
+	/** Temperature as returned by the BSP.  It is scaled by a factor of
+	    two, so we can show temperature to half a degree. */
+	uint16_t ti;
 };
+
+
+#define INVALIDTI INT_MIN
 
 
 extern struct Hc hc;

@@ -97,6 +97,8 @@ void lcd_showchar(char ch, uint8_t pos)
 	case 'R': lcdm1 = 0x64; lcdm0 = 0xc3; break;
 	case 'M': lcdm1 = 0x68; lcdm0 = 0x64; break;
 	case 'A': lcdm1 = 0x64; lcdm0 = 0xe2; break;
+	case '-': lcdm1 = 0x04; lcdm0 = 0x02; break;
+	case '+': lcdm1 = 0x05; lcdm0 = 0x0a; break;
 	default:
 		Q_ASSERT(0);
 		break;

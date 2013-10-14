@@ -20,7 +20,7 @@ static QState hcPause(struct Hc *me);
 static QState hcTemperature(struct Hc *me);
 static QState hcGetTemperature(struct Hc *me);
 
-static void show_temperature(struct Hc *me, int8_t ti);
+static void show_temperature(struct Hc *me);
 
 
 static QEvent hcQueue[4];
@@ -51,6 +51,7 @@ int main(void)
 static void hc_ctor(void)
 {
 	QActive_ctor((QActive*)(&hc), (QStateHandler)(&hcInitial));
+	hc.ti = INVALIDTI;
 }
 
 
@@ -119,7 +120,8 @@ static QState hcGetTemperature(struct Hc *me)
 		QActive_arm((QActive*)me, 2);
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
-		show_temperature(me, (int8_t) Q_PAR(me));
+		me->ti = (int16_t) Q_PAR(me);
+		show_temperature(me);
 		return Q_TRAN(hcPause);
 	case Q_TIMEOUT_SIG:
 		return Q_TRAN(hcPause);
@@ -128,7 +130,26 @@ static QState hcGetTemperature(struct Hc *me)
 }
 
 
-const char tstrings[141][8] = {
+/* Contains declarations of temperature sensing ranges: MINTI, MAXTI,
+   NCONVERSIONS. */
+#include "bsp-temperature-scale.h"
+
+
+/**
+ * The strings that are presented to the user for each temperature.
+ *
+ * The number of strings in here must be exactly half the possible values of
+ * the temperature scale, because we measure temperature to half a degree, and
+ * present it as a whole degree.
+ *
+ * This array is not automatically generated because it is independent of the
+ * temperature sensor and the ADC in the BSP.
+ */
+const char tstrings[101][8] = {
+	"50COLDS", "49COLDS", "48COLDS", "47COLDS", "46COLDS",
+	"45COLDS", "44COLDS", "43COLDS", "42COLDS", "41COLDS",
+	"40COLDS", "39COLDS", "38COLDS", "37COLDS", "36COLDS",
+	"35COLDS", "34COLDS", "33COLDS", "32COLDS", "31COLDS",
 	"30COLDS", "29COLDS", "28COLDS", "27COLDS", "26COLDS",
 	"25COLDS", "24COLDS", "23COLDS", "22COLDS", "21COLDS",
 	"20COLDS", "19COLDS", "18COLDS", "17COLDS", "16COLDS",
@@ -144,14 +165,48 @@ const char tstrings[141][8] = {
 	"26 HOTS", "27 HOTS", "28 HOTS", "29 HOTS", "30 HOTS",
 	"31 HOTS", "32 HOTS", "33 HOTS", "34 HOTS", "35 HOTS",
 	"36 HOTS", "37 HOTS", "38 HOTS", "39 HOTS", "40 HOTS",
+	"41 HOTS", "42 HOTS", "43 HOTS", "44 HOTS", "45 HOTS",
+	"46 HOTS", "47 HOTS", "48 HOTS", "49 HOTS", "50 HOTS",
 };
 
+const char lowtistring[] = " ---";
+const char hightistring[] = " +++";
 
-static void show_temperature(struct Hc *me, int8_t ti)
+// TODO should ti be int16_t?
+static void show_temperature(struct Hc *me)
 {
-	ti += 20;
-	Q_ASSERT( ti >= 0 );
-	Q_ASSERT( ti <= 70 );
-	ti /= 2;
-	lcd_showstring(tstrings[ti], 0);
+	uint16_t ti;
+	const char *tstring;
+
+	if (LOWTI == me->ti) {
+		SERIALSTR("LOW: ");
+		serial_send_int(me->ti);
+		SERIALSTR("\r\n");
+		lcd_clear();
+		lcd_showstring(lowtistring, 0);
+		return;
+	}
+	if (HIGHTI == me->ti) {
+		SERIALSTR("HIGH: ");
+		serial_send_int(me->ti);
+		SERIALSTR("\r\n");
+		lcd_clear();
+		lcd_showstring(hightistring, 0);
+		return;
+	}
+
+	ti = me->ti;
+	SERIALSTR("ti: ");
+	serial_send_int(ti);
+	SERIALSTR(":");
+	ti -= MINTI;		/* Move the scale up to zero-based. */
+	Q_ASSERT( ti >= 0 );	/* Range checking. */
+	Q_ASSERT( ti <= NCONVERSIONS );
+	ti /= 2;		/* Scale to whole degrees. */
+	serial_send_int(ti);
+	SERIALSTR("\"");
+	tstring = tstrings[ti];
+	serial_send(tstring);
+	SERIALSTR("\"\r\n");
+	lcd_showstring(tstring, 0);
 }

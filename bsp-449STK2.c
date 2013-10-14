@@ -13,7 +13,7 @@ Q_DEFINE_THIS_FILE;
 #include "bsp-449STK2.h"
 
 
-static int8_t convert_adc_to_temperature(uint16_t adc);
+static int16_t convert_adc_to_temperature(uint16_t adc);
 
 
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
@@ -238,9 +238,9 @@ __attribute__((__interrupt__(ADC12_VECTOR)))
 isr_ADC12(void)
 {
 	uint16_t adc;
-	int8_t temperature;
+	int16_t temperature;
 	static uint16_t previous_adc = 0x0002;
-	static int8_t previous_temperature = 0;
+	static int16_t previous_temperature = 0;
 
 	//Q_ASSERT(0); // yes
 
@@ -280,14 +280,13 @@ isr_ADC12(void)
 struct TempConversion {
 	uint16_t adcmin;	/** Minimum ADC value for this temperature. */
 	uint16_t adcmax;	/** Maximum ADC value for this temperature. */
-	int8_t ti;		/** Encoded temperature value. */
+	int16_t ti;		/** Encoded temperature value. */
 };
 
 /* This .inc file contains definitions of the TempConversions array, the size
    of that array, and some extreme values that we use for direct comparison. */
 #include "bsp-449STK2-temperature-scale.inc"
 
-#define INVALIDTI -127
 
 static int tccompare(const void *key, const void *entry)
 {
@@ -319,16 +318,16 @@ static int tccompare(const void *key, const void *entry)
  * We first check for extreme values from the ADC (above upper bound or below
  * lower bound).  Then we do a binary search of the conversion array.
  */
-static int8_t convert_adc_to_temperature(uint16_t adc)
+static int16_t convert_adc_to_temperature(uint16_t adc)
 {
 	struct TempConversion keytc;
 	struct TempConversion *matchtcp;
 
 	if (adc <= MINADC) {
-		return MINTI;
+		return LOWTI;
 	}
 	if (adc >= MAXADC) {
-		return MAXTI;
+		return HIGHTI;
 	}
 	/* We only use this one member of keytc, for comparisons inside
 	   bsearch(). */
