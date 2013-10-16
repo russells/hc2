@@ -97,6 +97,10 @@ void BSP_init(void)
 	BSP_led_on();
 	__delay_cycles(2000000L); /* Wait at start so we can see resets. */
 	BSP_led_off();
+
+	/* Set up the switch inputs.  The 449STK2 board has external pullup
+	   resistors on these pins. */
+	P3DIR = 0;
 }
 
 
@@ -175,7 +179,10 @@ void BSP_do_reset(void)
 
 uint8_t BSP_switch_pressed(void)
 {
-	return 1;
+	if (P3IN & BIT4)
+		return 0;
+	else
+		return 1;
 }
 
 

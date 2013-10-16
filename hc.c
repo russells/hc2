@@ -98,14 +98,15 @@ static QState hcCalibratePause(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		if (! BSP_switch_pressed()) {
-			return Q_TRAN(hcPause);
-		} else {
-			QActive_arm((QActive*)me, 6);
-			return Q_HANDLED();
-		}
+		QActive_arm((QActive*)me, 6);
+		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
-		return Q_TRAN(hcCalibrateTemperature);
+		if (! BSP_switch_pressed()) {
+			SERIALSTR("hcCP no sw\r\n");
+			return Q_TRAN(hcTemperature);
+		} else {
+			return Q_TRAN(hcCalibrateTemperature);
+		}
 	}
 	return Q_SUPER(hcCalibrate);
 }
