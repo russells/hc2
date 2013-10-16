@@ -173,6 +173,12 @@ void BSP_do_reset(void)
 }
 
 
+uint8_t BSP_switch_pressed(void)
+{
+	return 1;
+}
+
+
 void BSP_start_temperature_reading(void)
 {
 	/* Ensure that ENC=0 before we start */

@@ -5,8 +5,8 @@
 
 void lcd_init(void);
 void lcd_clear(void);
-void lcd_show(const char *s);
+void lcd_setsegments(uint8_t c);
 void lcd_showchar(char ch, uint8_t pos);
-void lcd_showstring(const char *s, uint8_t startpos);
+void lcd_showstring(const char *s);
 
 #endif

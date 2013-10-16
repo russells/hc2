@@ -33,12 +33,10 @@ void lcd_init(void)
 
 
 /**
- * Given a string to show, figure out what LCD segments to activate.
+ * Set all the segment registers to the same value.
  */
-void lcd_show(const char *s)
+void lcd_setsegments(uint8_t c)
 {
-	uint8_t c = (uint8_t)(s[0]);
-
 	LCDM1  = c; LCDM2  = c; LCDM3  = c; LCDM4  = c;
 	LCDM5  = c; LCDM6  = c; LCDM7  = c; LCDM8  = c;
 	LCDM9  = c; LCDM10 = c; LCDM11 = c; LCDM12 = c;
@@ -49,7 +47,7 @@ void lcd_show(const char *s)
 
 void lcd_clear(void)
 {
-	lcd_show("");
+	lcd_setsegments(0);
 }
 
 
@@ -74,7 +72,7 @@ void lcd_showchar(char ch, uint8_t pos)
 		break;
 	}
 
-	switch (ch) {
+	switch (ch & 0x7f) {
 	case '0': lcdm1 = 0x62; lcdm0 = 0xf4; break;
 	case '1': lcdm1 = 0x00; lcdm0 = 0x60; break;
 	case '2': lcdm1 = 0x24; lcdm0 = 0xd2; break;
@@ -107,21 +105,32 @@ void lcd_showchar(char ch, uint8_t pos)
 	//serial_send_char(',');
 	//serial_send_hex_int(lcdm0);
 	//serial_send_char(' ');
-	lcdm[index+1] = lcdm1;
-	lcdm[index  ] = lcdm0;
+	/* We only set the bits for the segments we've turned on, so we don't
+	   accidentally turn off other segments. */
+	lcdm[index+1] |= lcdm1;
+	lcdm[index  ] |= lcdm0;
+	if (ch & 0x80) {
+		/* The DP is in the next lower LCD memory location, with
+		   segments from the next character. */
+		lcdm[index-1] |= 0x10;
+	}
 }
 
 
-void lcd_showstring(const char *s, uint8_t startpos)
+void lcd_showstring(const char *s)
 {
+	uint8_t pos;
+
+	lcd_clear();
 	//SERIALSTR("S: \"");
 	//serial_send(s);
 	//SERIALSTR("\"\r\n");
 	//SERIALSTR("-- ");
+	pos = 0;
 	while (*s) {
-		lcd_showchar(*s, startpos);
+		lcd_showchar(*s, pos);
 		s++;
-		startpos++;
+		pos++;
 	}
 	//SERIALSTR("\r\n");
 }
