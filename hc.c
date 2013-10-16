@@ -6,6 +6,9 @@
 #include "bsp.h"
 #include "lcd.h"
 #include "serial.h"
+/* Contains declarations of temperature sensing ranges: MINTI, MAXTI,
+   NCONVERSIONS. */
+#include "bsp-temperature-scale.h"
 
 
 Q_DEFINE_THIS_FILE;
@@ -57,6 +60,7 @@ static void hc_ctor(void)
 {
 	QActive_ctor((QActive*)(&hc), (QStateHandler)(&hcInitial));
 	hc.ti = INVALIDTI;
+	hc.calibration = BSP_get_calibration();
 }
 
 
@@ -89,6 +93,9 @@ static QState hcCalibrate(struct Hc *me)
 	case Q_ENTRY_SIG:
 		BSP_fast_timer();
 		return Q_HANDLED();
+	case Q_EXIT_SIG:
+		BSP_save_calibration(me->calibration);
+		return Q_HANDLED();
 	}
 	return Q_SUPER(hcTop);
 }
@@ -101,7 +108,7 @@ static QState hcCalibratePause(struct Hc *me)
 		QActive_arm((QActive*)me, 6);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
-		if (! BSP_switch_pressed()) {
+		if (! BSP_cal_switch()) {
 			SERIALSTR("hcCP no sw\r\n");
 			return Q_TRAN(hcTemperature);
 		} else {
@@ -139,6 +146,13 @@ static QState hcCalibrateGetTemperature(struct Hc *me)
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
 		me->ti = Q_PAR(me);
+		if (BSP_up_switch() && (me->calibration < MAX_CAL)) {
+			SERIALSTR("up\r\n");
+			me->calibration ++;
+		} else if (BSP_down_switch() && (me->calibration > MIN_CAL)) {
+			SERIALSTR("down\r\n");
+			me->calibration --;
+		}
 		show_temperature_cal(me);
 		return Q_TRAN(hcCalibratePause);
 	case Q_TIMEOUT_SIG:
@@ -157,7 +171,7 @@ static QState hcPause(struct Hc *me)
 		QActive_arm((QActive*)me, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
-		if (BSP_switch_pressed()) {
+		if (BSP_cal_switch()) {
 			return Q_TRAN(hcCalibrateTemperature);
 		} else {
 			return Q_TRAN(hcTemperature);
@@ -204,9 +218,32 @@ static QState hcGetTemperature(struct Hc *me)
 }
 
 
-/* Contains declarations of temperature sensing ranges: MINTI, MAXTI,
-   NCONVERSIONS. */
-#include "bsp-temperature-scale.h"
+
+static int16_t get_calibrated_ti(struct Hc *me)
+{
+	int16_t adjti;
+
+	SERIALSTR("adj:");
+	serial_send_int(me->ti);
+	SERIALSTR(":");
+	/* If the temperature value is outside the BSP range, leave it
+	   there. */
+	if ((LOWTI == me->ti) || (HIGHTI == me->ti)) {
+		adjti = me->ti;
+	} else {
+		adjti = me->ti + me->calibration;
+		serial_send_int(adjti);
+		/* If the calibration moved the value outside the
+		   allowed range, indicate that. */
+		if (adjti < MINTI) {
+			adjti = LOWTI;
+		} else if (adjti > MAXTI) {
+			adjti = HIGHTI;
+		}
+	}
+	SERIALSTR("\r\n");
+	return adjti;
+}
 
 
 /**
@@ -249,129 +286,147 @@ const char hightistring[] = " +++";
 
 static void show_temperature(struct Hc *me)
 {
-	uint16_t ti;
+	int16_t adjti;
 	const char *tstring;
 
-	if (LOWTI == me->ti) {
+	adjti = get_calibrated_ti(me);
+
+	if (LOWTI == adjti) {
 		SERIALSTR("LOW: ");
-		serial_send_int(me->ti);
+		serial_send_int(adjti);
 		SERIALSTR("\r\n");
 		lcd_clear();
 		lcd_showstring(lowtistring);
 		return;
 	}
-	if (HIGHTI == me->ti) {
+	if (HIGHTI == adjti) {
 		SERIALSTR("HIGH: ");
-		serial_send_int(me->ti);
+		serial_send_int(adjti);
 		SERIALSTR("\r\n");
 		lcd_clear();
 		lcd_showstring(hightistring);
 		return;
 	}
 
-	ti = me->ti;
-	SERIALSTR("ti: ");
-	serial_send_int(ti);
+	SERIALSTR("adjti: ");
+	serial_send_int(adjti);
 	SERIALSTR(":");
-	ti -= MINTI;		/* Move the scale up to zero-based. */
-	Q_ASSERT( ti >= 0 );	/* Range checking. */
-	Q_ASSERT( ti < NCONVERSIONS );
-	ti /= 2;		/* Scale to whole degrees. */
-	serial_send_int(ti);
+	adjti -= MINTI;		/* Move the scale up to zero-based. */
+	Q_ASSERT( adjti >= 0 );	/* Range checking. */
+	Q_ASSERT( adjti < NCONVERSIONS );
+	adjti /= 2;		/* Scale to whole degrees. */
+	serial_send_int(adjti);
 	SERIALSTR("\"");
-	tstring = tstrings[ti];
+	tstring = tstrings[adjti];
 	serial_send(tstring);
 	SERIALSTR("\"\r\n");
 	lcd_showstring(tstring);
 }
 
 
-const char tstrings_cal[202][8] = {
-	"-3\xb0" "0 C",
-	"-2\xb9" "5 C", "-2\xb9" "0 C", "-2\xb8" "5 C", "-2\xb8" "0 C",
-	"-2\xb7" "5 C", "-2\xb7" "0 C", "-2\xb6" "5 C", "-2\xb6" "0 C",
-	"-2\xb5" "5 C", "-2\xb5" "0 C", "-2\xb4" "5 C", "-2\xb4" "0 C",
-	"-2\xb3" "5 C", "-2\xb3" "0 C", "-2\xb2" "5 C", "-2\xb2" "0 C",
-	"-2\xb1" "5 C", "-2\xb1" "0 C", "-2\xb0" "5 C", "-2\xb0" "0 C",
-	"-1\xb9" "5 C", "-1\xb9" "0 C", "-1\xb8" "5 C", "-1\xb8" "0 C",
-	"-1\xb7" "5 C", "-1\xb7" "0 C", "-1\xb6" "5 C", "-1\xb6" "0 C",
-	"-1\xb5" "5 C", "-1\xb5" "0 C", "-1\xb4" "5 C", "-1\xb4" "0 C",
-	"-1\xb3" "5 C", "-1\xb3" "0 C", "-1\xb2" "5 C", "-1\xb2" "0 C",
-	"-1\xb1" "5 C", "-1\xb1" "0 C", "-1\xb0" "5 C", "-1\xb0" "0 C",
-	"- \xb9" "5 C", "- \xb9" "0 C", "- \xb8" "5 C", "- \xb8" "0 C",
-	"- \xb7" "5 C", "- \xb7" "0 C", "- \xb6" "5 C", "- \xb6" "0 C",
-	"- \xb5" "5 C", "- \xb5" "0 C", "- \xb4" "5 C", "- \xb4" "0 C",
-	"- \xb3" "5 C", "- \xb3" "0 C", "- \xb2" "5 C", "- \xb2" "0 C",
-	"- \xb1" "5 C", "- \xb1" "0 C", "- \xb0" "5 C",
-	"+ \xb0" "0 C", "+ \xb0" "5 C", "+ \xb1" "0 C", "+ \xb1" "5 C",
-	"+ \xb2" "0 C", "+ \xb2" "5 C", "+ \xb3" "0 C", "+ \xb3" "5 C",
-	"+ \xb4" "0 C", "+ \xb4" "5 C", "+ \xb5" "0 C", "+ \xb5" "5 C",
-	"+ \xb6" "0 C", "+ \xb6" "5 C", "+ \xb7" "0 C", "+ \xb7" "5 C",
-	"+ \xb8" "0 C", "+ \xb8" "5 C", "+ \xb9" "0 C", "+ \xb9" "5 C",
-	"+1\xb0" "0 C", "+1\xb0" "5 C", "+1\xb1" "0 C", "+1\xb1" "5 C",
-	"+1\xb2" "0 C", "+1\xb2" "5 C", "+1\xb3" "0 C", "+1\xb3" "5 C",
-	"+1\xb4" "0 C", "+1\xb4" "5 C", "+1\xb5" "0 C", "+1\xb5" "5 C",
-	"+1\xb6" "0 C", "+1\xb6" "5 C", "+1\xb7" "0 C", "+1\xb7" "5 C",
-	"+1\xb8" "0 C", "+1\xb8" "5 C", "+1\xb9" "0 C", "+1\xb9" "5 C",
-	"+2\xb0" "0 C", "+2\xb0" "5 C", "+2\xb1" "0 C", "+2\xb1" "5 C",
-	"+2\xb2" "0 C", "+2\xb2" "5 C", "+2\xb3" "0 C", "+2\xb3" "5 C",
-	"+2\xb4" "0 C", "+2\xb4" "5 C", "+2\xb5" "0 C", "+2\xb5" "5 C",
-	"+2\xb6" "0 C", "+2\xb6" "5 C", "+2\xb7" "0 C", "+2\xb7" "5 C",
-	"+2\xb8" "0 C", "+2\xb8" "5 C", "+2\xb9" "0 C", "+2\xb9" "5 C",
-	"+3\xb0" "0 C", "+3\xb0" "5 C", "+3\xb1" "0 C", "+3\xb1" "5 C",
-	"+3\xb2" "0 C", "+3\xb2" "5 C", "+3\xb3" "0 C", "+3\xb3" "5 C",
-	"+3\xb4" "0 C", "+3\xb4" "5 C", "+3\xb5" "0 C", "+3\xb5" "5 C",
-	"+3\xb6" "0 C", "+3\xb6" "5 C", "+3\xb7" "0 C", "+3\xb7" "5 C",
-	"+3\xb8" "0 C", "+3\xb8" "5 C", "+3\xb9" "0 C", "+3\xb9" "5 C",
-	"+4\xb0" "0 C", "+4\xb0" "5 C", "+4\xb1" "0 C", "+4\xb1" "5 C",
-	"+4\xb2" "0 C", "+4\xb2" "5 C", "+4\xb3" "0 C", "+4\xb3" "5 C",
-	"+4\xb4" "0 C", "+4\xb4" "5 C", "+4\xb5" "0 C", "+4\xb5" "5 C",
-	"+4\xb6" "0 C", "+4\xb6" "5 C", "+4\xb7" "0 C", "+4\xb7" "5 C",
-	"+4\xb8" "0 C", "+4\xb8" "5 C", "+4\xb9" "0 C", "+4\xb9" "5 C",
-	"+5\xb0" "0 C", "+5\xb0" "5 C", "+5\xb1" "0 C", "+5\xb1" "5 C",
-	"+5\xb2" "0 C", "+5\xb2" "5 C", "+5\xb3" "0 C", "+5\xb3" "5 C",
-	"+5\xb4" "0 C", "+5\xb4" "5 C", "+5\xb5" "0 C", "+5\xb5" "5 C",
-	"+5\xb6" "0 C", "+5\xb6" "5 C", "+5\xb7" "0 C", "+5\xb7" "5 C",
-	"+5\xb8" "0 C", "+5\xb8" "5 C", "+5\xb9" "0 C", "+5\xb9" "5 C",
-	"+6\xb0" "0 C", "+6\xb0" "5 C", "+6\xb1" "0 C", "+6\xb1" "5 C",
-	"+6\xb2" "0 C", "+6\xb2" "5 C", "+6\xb3" "0 C", "+6\xb3" "5 C",
-	"+6\xb4" "0 C", "+6\xb4" "5 C", "+6\xb5" "0 C", "+6\xb5" "5 C",
-	"+6\xb6" "0 C", "+6\xb6" "5 C", "+6\xb7" "0 C", "+6\xb7" "5 C",
-	"+6\xb8" "0 C", "+6\xb8" "5 C", "+6\xb9" "0 C", "+6\xb9" "5 C",
-	"+7\xb0" "0 C", "+7\xb5" "5 C",
+const char tstrings_cal[202][5] = {
+	"-3\xb0" "0",
+	"-2\xb9" "5", "-2\xb9" "0", "-2\xb8" "5", "-2\xb8" "0",
+	"-2\xb7" "5", "-2\xb7" "0", "-2\xb6" "5", "-2\xb6" "0",
+	"-2\xb5" "5", "-2\xb5" "0", "-2\xb4" "5", "-2\xb4" "0",
+	"-2\xb3" "5", "-2\xb3" "0", "-2\xb2" "5", "-2\xb2" "0",
+	"-2\xb1" "5", "-2\xb1" "0", "-2\xb0" "5", "-2\xb0" "0",
+	"-1\xb9" "5", "-1\xb9" "0", "-1\xb8" "5", "-1\xb8" "0",
+	"-1\xb7" "5", "-1\xb7" "0", "-1\xb6" "5", "-1\xb6" "0",
+	"-1\xb5" "5", "-1\xb5" "0", "-1\xb4" "5", "-1\xb4" "0",
+	"-1\xb3" "5", "-1\xb3" "0", "-1\xb2" "5", "-1\xb2" "0",
+	"-1\xb1" "5", "-1\xb1" "0", "-1\xb0" "5", "-1\xb0" "0",
+	"- \xb9" "5", "- \xb9" "0", "- \xb8" "5", "- \xb8" "0",
+	"- \xb7" "5", "- \xb7" "0", "- \xb6" "5", "- \xb6" "0",
+	"- \xb5" "5", "- \xb5" "0", "- \xb4" "5", "- \xb4" "0",
+	"- \xb3" "5", "- \xb3" "0", "- \xb2" "5", "- \xb2" "0",
+	"- \xb1" "5", "- \xb1" "0", "- \xb0" "5",
+	"+ \xb0" "0", "+ \xb0" "5", "+ \xb1" "0", "+ \xb1" "5",
+	"+ \xb2" "0", "+ \xb2" "5", "+ \xb3" "0", "+ \xb3" "5",
+	"+ \xb4" "0", "+ \xb4" "5", "+ \xb5" "0", "+ \xb5" "5",
+	"+ \xb6" "0", "+ \xb6" "5", "+ \xb7" "0", "+ \xb7" "5",
+	"+ \xb8" "0", "+ \xb8" "5", "+ \xb9" "0", "+ \xb9" "5",
+	"+1\xb0" "0", "+1\xb0" "5", "+1\xb1" "0", "+1\xb1" "5",
+	"+1\xb2" "0", "+1\xb2" "5", "+1\xb3" "0", "+1\xb3" "5",
+	"+1\xb4" "0", "+1\xb4" "5", "+1\xb5" "0", "+1\xb5" "5",
+	"+1\xb6" "0", "+1\xb6" "5", "+1\xb7" "0", "+1\xb7" "5",
+	"+1\xb8" "0", "+1\xb8" "5", "+1\xb9" "0", "+1\xb9" "5",
+	"+2\xb0" "0", "+2\xb0" "5", "+2\xb1" "0", "+2\xb1" "5",
+	"+2\xb2" "0", "+2\xb2" "5", "+2\xb3" "0", "+2\xb3" "5",
+	"+2\xb4" "0", "+2\xb4" "5", "+2\xb5" "0", "+2\xb5" "5",
+	"+2\xb6" "0", "+2\xb6" "5", "+2\xb7" "0", "+2\xb7" "5",
+	"+2\xb8" "0", "+2\xb8" "5", "+2\xb9" "0", "+2\xb9" "5",
+	"+3\xb0" "0", "+3\xb0" "5", "+3\xb1" "0", "+3\xb1" "5",
+	"+3\xb2" "0", "+3\xb2" "5", "+3\xb3" "0", "+3\xb3" "5",
+	"+3\xb4" "0", "+3\xb4" "5", "+3\xb5" "0", "+3\xb5" "5",
+	"+3\xb6" "0", "+3\xb6" "5", "+3\xb7" "0", "+3\xb7" "5",
+	"+3\xb8" "0", "+3\xb8" "5", "+3\xb9" "0", "+3\xb9" "5",
+	"+4\xb0" "0", "+4\xb0" "5", "+4\xb1" "0", "+4\xb1" "5",
+	"+4\xb2" "0", "+4\xb2" "5", "+4\xb3" "0", "+4\xb3" "5",
+	"+4\xb4" "0", "+4\xb4" "5", "+4\xb5" "0", "+4\xb5" "5",
+	"+4\xb6" "0", "+4\xb6" "5", "+4\xb7" "0", "+4\xb7" "5",
+	"+4\xb8" "0", "+4\xb8" "5", "+4\xb9" "0", "+4\xb9" "5",
+	"+5\xb0" "0", "+5\xb0" "5", "+5\xb1" "0", "+5\xb1" "5",
+	"+5\xb2" "0", "+5\xb2" "5", "+5\xb3" "0", "+5\xb3" "5",
+	"+5\xb4" "0", "+5\xb4" "5", "+5\xb5" "0", "+5\xb5" "5",
+	"+5\xb6" "0", "+5\xb6" "5", "+5\xb7" "0", "+5\xb7" "5",
+	"+5\xb8" "0", "+5\xb8" "5", "+5\xb9" "0", "+5\xb9" "5",
+	"+6\xb0" "0", "+6\xb0" "5", "+6\xb1" "0", "+6\xb1" "5",
+	"+6\xb2" "0", "+6\xb2" "5", "+6\xb3" "0", "+6\xb3" "5",
+	"+6\xb4" "0", "+6\xb4" "5", "+6\xb5" "0", "+6\xb5" "5",
+	"+6\xb6" "0", "+6\xb6" "5", "+6\xb7" "0", "+6\xb7" "5",
+	"+6\xb8" "0", "+6\xb8" "5", "+6\xb9" "0", "+6\xb9" "5",
+	"+7\xb0" "0", "+7\xb5" "5",
+};
+
+
+static const char calstrings[19][4] = {
+	"-\xb4" "5", "-\xb4" "0", "-\xb3" "5", "-\xb3" "0",
+	"-\xb2" "5", "-\xb2" "0", "-\xb1" "5", "-\xb1" "0",
+	"-\xb0" "5", " \xb0" "0", "+\xb0" "5",
+	"+\xb1" "0", "+\xb1" "5", "+\xb2" "0", "+\xb2" "5",
+	"+\xb3" "0", "+\xb3" "5", "+\xb4" "0", "+\xb4" "5",
 };
 
 
 static void show_temperature_cal(struct Hc *me)
 {
-	int16_t ti;
-	const char *tstring;
+	int16_t adjti;
+	char s[8];		/* TODO change to s[9] when we get the bigger
+				   LCD.  Also change the layout code below. */
 
-	if (LOWTI == me->ti) {
+	adjti = get_calibrated_ti(me);
+
+	if (LOWTI == adjti) {
 		lcd_clear();
 		lcd_showstring(lowtistring);
 		return;
 	}
-	if (HIGHTI == me->ti) {
+	if (HIGHTI == adjti) {
 		lcd_clear();
 		lcd_showstring(hightistring);
 		return;
 	}
-	ti = me->ti;
-	ti -= MINTI;
-	Q_ASSERT( ti >= 0 );
-	Q_ASSERT( ti < NCONVERSIONS );
-	tstring = tstrings_cal[ti];
+	adjti -= MINTI;
+	Q_ASSERT( adjti >= 0 );
+	Q_ASSERT( adjti < NCONVERSIONS );
+
+	strcpy(s, tstrings_cal[adjti]);
+
+	Q_ASSERT( me->calibration >= MIN_CAL );
+	Q_ASSERT( me->calibration <= MAX_CAL );
+
+	strcpy(s+4, calstrings[ me->calibration - MIN_CAL ]);
 
 	{
 		SERIALSTR("cal ");
-		serial_send_int(me->ti);
+		serial_send_int(adjti);
 		SERIALSTR(":");
-		serial_send_int(ti);
+		serial_send_int(adjti);
 		SERIALSTR(" \"");
-		for (uint8_t i = 0; tstring[i]; i++) {
-			serial_send_char(0x7f & tstring[i]);
-			if (0x80 & tstring[i]) {
+		for (uint8_t i = 0; s[i]; i++) {
+			serial_send_char(0x7f & s[i]);
+			if (0x80 & s[i]) {
 				serial_send_char('.');
 			}
 		}
@@ -380,5 +435,5 @@ static void show_temperature_cal(struct Hc *me)
 
 
 	lcd_clear();
-	lcd_showstring(tstring);
+	lcd_showstring(s);
 }

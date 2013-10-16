@@ -5,6 +5,7 @@
 #include "serial.h"
 #include <msp430.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 Q_DEFINE_THIS_FILE;
@@ -177,12 +178,21 @@ void BSP_do_reset(void)
 }
 
 
-uint8_t BSP_switch_pressed(void)
+uint8_t BSP_cal_switch(void)
 {
-	if (P3IN & BIT4)
-		return 0;
-	else
-		return 1;
+	return ! (P3IN & BIT4);
+}
+
+
+uint8_t BSP_up_switch(void)
+{
+	return ! (P3IN & BIT5);
+}
+
+
+uint8_t BSP_down_switch(void)
+{
+	return ! (P3IN & BIT6);
 }
 
 
@@ -352,4 +362,120 @@ static int16_t convert_adc_to_temperature(uint16_t adc)
 		Q_ASSERT(0);
 	}
 	return matchtcp->ti;
+}
+
+
+static const char * const calibration_name = "CALIBRATION: ";
+/** Base address of flash area. */
+static char * const calibration_base = (char*) 0x1000;
+
+
+/**
+ * Get the calibration from nvram.
+ */
+int16_t BSP_get_calibration(void)
+{
+	uint8_t negative;
+	uint16_t cal;
+
+	SERIALSTR("get:");
+
+	serial_send(calibration_base);
+
+	if (strncmp(calibration_name, calibration_base, 13)) {
+		SERIALSTR("<A>\r\n");
+		return 0;
+	}
+	if (calibration_base[13] == '-') {
+		negative = 1;
+	} else if (calibration_base[13] == '+') {
+		negative = 0;
+	} else {
+		SERIALSTR("<B>0x");
+		serial_send_hex_int(calibration_base[13]);
+		SERIALSTR("\r\n");
+		return 0;
+	}
+	if (calibration_base[14] < '0' || calibration_base[14] > '9') {
+		SERIALSTR("<C>\r\n");
+		return 0;
+	}
+	if (calibration_base[15]) {
+		SERIALSTR("<D>\r\n");
+		return 0;
+	}
+	if (negative) {
+		cal = '0' - calibration_base[14];
+	} else {
+		cal = calibration_base[14] - '0';
+	}
+	SERIALSTR("\r\n");
+	return cal;
+}
+
+
+/**
+ * Save the calibration to nvram.
+ */
+void BSP_save_calibration(int16_t cal)
+{
+	char *base;
+	char s[20];
+	char c;
+	uint8_t i;
+
+	SERIALSTR("save:");
+
+	Q_ASSERT( cal >= -9 );
+	Q_ASSERT( cal <= 9 );
+
+
+	strcpy(s, calibration_name);
+	i = 13;
+	if (cal < 0) {
+		s[i++] = '-';
+		s[i++] = (((int8_t)cal) * -1) + '0';
+	} else {
+		s[i++] = '+';
+		s[i++] = ((int8_t)cal) + '0';
+	}
+	s[i++] = '\0';
+
+	/* Do all the flash writing with interrupts off. */
+	_BIC_SR(GIE);
+
+	/* Set up the flash write mechanism. */
+	FCTL2 = FWKEY |
+		(FSSEL1 & 0) | FSSEL0 | /* MCLK at 1048576Hz */
+		0x02;		/* Divisor=3, 349525.3Hz */
+
+	/* Clear the block. */
+	FCTL3 = FWKEY | (LOCK & 0); /* LOCK=0 unlocks the flash segment */
+	FCTL1 = FWKEY |
+		(MERAS & 0) | ERASE;
+	*calibration_base = '\0';
+	FCTL3 = FWKEY | LOCK; /* LOCK=1 locks the flash segment */
+
+	/* Write the string. */
+	i = 0;
+	base = (char *) calibration_base;
+	do {
+		c = s[i];
+		if (c) {
+			serial_send_char(c);
+		} else {
+			SERIALSTR("\\0");
+		}
+		FCTL3 = FWKEY | (LOCK * 0);
+		FCTL1 = FWKEY | WRT;
+		*base = c;
+		FCTL3 = FWKEY | LOCK;
+		base ++;
+		i ++;
+	} while (c);		/* Break _after_ writing the null byte. */
+
+	SERIALSTR("\r\n");
+
+	/* Interrupts back on. */
+	_BIC_SR(GIE);
 }
