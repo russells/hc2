@@ -9,7 +9,7 @@
 void BSP_init(void);
 
 void BSP_fast_timer(void);
-void BSP_slow_timer(void);
+void BSP_slow_timer(uint8_t reset);
 
 void BSP_led_on(void);
 void BSP_led_off(void);

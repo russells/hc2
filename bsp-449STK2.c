@@ -17,6 +17,33 @@ Q_DEFINE_THIS_FILE;
 static int16_t convert_adc_to_temperature(uint16_t adc);
 
 
+/**
+ * The number of ticks we do in slow timer mode between returns to QP-nano.
+ */
+#define SLOW_TIMER_TICKS 4
+
+
+/**
+ * Set when we have the fast timer tick running.
+ *
+ * When set, we return to the QP-nano loop after every tick.  When not set, we
+ * only return every SLOW_TIMER_TICKS ticks, to reduct power consumption.
+ */
+static volatile uint8_t fast_timer = 0;
+
+
+/**
+ * Count slow timer ticks, so we know when to return to QP-nano.
+ */
+static volatile uint8_t slow_timer_ticks = 0;
+
+
+/**
+ * Set to tell QF_onIdle() that we need to do QP-nano processing now.
+ */
+static volatile uint8_t timer_tick_done = 0;
+
+
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
 {
 	BSP_stop_everything();
@@ -67,13 +94,23 @@ void BSP_fast_timer(void)
 	 wants 17ms to stabilise, so the next shorter period (15.625ms) is too
 	 short. */
 	basic_timer1_rate(0b001);
+	fast_timer = 77;
 }
 
 
-void BSP_slow_timer(void)
+/**
+ * Change the timer to give us long intervals.
+ *
+ * @param reset if true, start counting from the longest interval.
+ */
+void BSP_slow_timer(uint8_t reset)
 {
 	// BTIPx=111, fCLK2/256 = 0.5HZ, period = 2s
 	basic_timer1_rate(0b111);
+	fast_timer = 0;
+	if (reset) {
+		slow_timer_ticks = 0;
+	}
 }
 
 
@@ -114,8 +151,15 @@ void QF_onStartup(void)
 
 void QF_onIdle(void)
 {
+ idle:
 	BSP_led_off();
 	ENTER_LPM();
+	if (! timer_tick_done) {
+		goto idle;
+	}
+	/* If timer_tick_done was true, we reset it for next time, and return
+	   to the QP-nano loop. */
+	timer_tick_done = 0;
 }
 
 
@@ -136,7 +180,27 @@ __attribute__((__interrupt__(BASICTIMER_VECTOR)))
 isr_BASICTIMER(void)
 {
 	BSP_led_on();
-	QF_tick();
+	if (fast_timer) {
+		SERIALSTR("<F>");
+		QF_tick();
+		timer_tick_done = 1;
+	} else {
+		if (! slow_timer_ticks) {
+			SERIALSTR("<S:Q>");
+			QF_tick();
+			slow_timer_ticks = SLOW_TIMER_TICKS;
+			timer_tick_done = 1;
+		} else {
+			if (BSP_cal_switch()) {
+				SERIALSTR("<S:Sw>");
+				QF_tick();
+				timer_tick_done = 1;
+			} else {
+				SERIALSTR("<S>");
+			}
+			slow_timer_ticks --;
+		}
+	}
 	EXIT_LPM();
 }
 
@@ -365,8 +429,18 @@ static int16_t convert_adc_to_temperature(uint16_t adc)
 }
 
 
+/** The name that's saved in flash to indicate the calibration.  We look for
+    this exact string as part of the checks for a valid calibration value. */
 static const char * const calibration_name = "CALIBRATION: ";
-/** Base address of flash area. */
+
+
+/** The length of the name we save in flash.  This must match the length of
+    calibration_name (ignoring its terminating null byte.) */
+#define CN_LEN 13
+
+
+/** Base address of flash area.  This is the start of the "information flash"
+    in the MSP430F449.  We use the first half (128 bytes) of this area. */
 static char * const calibration_base = (char*) 0x1000;
 
 
@@ -382,32 +456,33 @@ int16_t BSP_get_calibration(void)
 
 	serial_send(calibration_base);
 
-	if (strncmp(calibration_name, calibration_base, 13)) {
+	if (strncmp(calibration_name, calibration_base, CN_LEN)) {
 		SERIALSTR("<A>\r\n");
 		return 0;
 	}
-	if (calibration_base[13] == '-') {
+	if (calibration_base[CN_LEN] == '-') {
 		negative = 1;
-	} else if (calibration_base[13] == '+') {
+	} else if (calibration_base[CN_LEN] == '+') {
 		negative = 0;
 	} else {
 		SERIALSTR("<B>0x");
-		serial_send_hex_int(calibration_base[13]);
+		serial_send_hex_int(calibration_base[CN_LEN]);
 		SERIALSTR("\r\n");
 		return 0;
 	}
-	if (calibration_base[14] < '0' || calibration_base[14] > '9') {
+	if (calibration_base[CN_LEN+1] < '0'
+	    || calibration_base[CN_LEN+1] > '9') {
 		SERIALSTR("<C>\r\n");
 		return 0;
 	}
-	if (calibration_base[15]) {
+	if (calibration_base[CN_LEN+2]) {
 		SERIALSTR("<D>\r\n");
 		return 0;
 	}
 	if (negative) {
-		cal = '0' - calibration_base[14];
+		cal = '0' - calibration_base[CN_LEN+1];
 	} else {
-		cal = calibration_base[14] - '0';
+		cal = calibration_base[CN_LEN+1] - '0';
 	}
 	SERIALSTR("\r\n");
 	return cal;
@@ -431,7 +506,7 @@ void BSP_save_calibration(int16_t cal)
 
 
 	strcpy(s, calibration_name);
-	i = 13;
+	i = CN_LEN;
 	if (cal < 0) {
 		s[i++] = '-';
 		s[i++] = (((int8_t)cal) * -1) + '0';

@@ -74,6 +74,7 @@ static QState hcTop(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		BSP_slow_timer(1);
 		lcd_clear();
 		break;
 	case WATCHDOG_SIGNAL:
@@ -95,6 +96,9 @@ static QState hcCalibrate(struct Hc *me)
 		return Q_HANDLED();
 	case Q_EXIT_SIG:
 		BSP_save_calibration(me->calibration);
+		/* Save this as an invalid value, so at the next tick
+		   hcGetTemperature() will be forced to update the display. */
+		me->ti = INVALIDTI;
 		return Q_HANDLED();
 	}
 	return Q_SUPER(hcTop);
@@ -167,7 +171,7 @@ static QState hcPause(struct Hc *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		SERIALSTR("hcPause\r\n");
-		BSP_slow_timer();
+		BSP_slow_timer(0);
 		QActive_arm((QActive*)me, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
@@ -201,6 +205,8 @@ static QState hcTemperature(struct Hc *me)
 
 static QState hcGetTemperature(struct Hc *me)
 {
+	int16_t ti;
+
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		SERIALSTR("hcGet\r\n");
@@ -208,8 +214,12 @@ static QState hcGetTemperature(struct Hc *me)
 		QActive_arm((QActive*)me, 2);
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
-		me->ti = (int16_t) Q_PAR(me);
-		show_temperature(me);
+		ti = (int16_t) Q_PAR(me);
+		/* Only update the display if the temperature has changed. */
+		if (INVALIDTI == me->ti || ti != me->ti) {
+			me->ti = ti;
+			show_temperature(me);
+		}
 		return Q_TRAN(hcPause);
 	case Q_TIMEOUT_SIG:
 		return Q_TRAN(hcPause);
