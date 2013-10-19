@@ -11,8 +11,13 @@ void BSP_init(void);
 void BSP_fast_timer(void);
 void BSP_slow_timer(uint8_t reset);
 
+#ifdef LED
 void BSP_led_on(void);
 void BSP_led_off(void);
+#else
+#define BSP_led_on()
+#define BSP_led_off()
+#endif
 
 
 void BSP_enable_morse_line(void);

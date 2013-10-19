@@ -130,11 +130,13 @@ void BSP_init(void)
 
 	basic_timer1_init();
 
+#ifdef LED
 	P1DIR = BIT3;		/* LED output */
 
 	BSP_led_on();
 	__delay_cycles(2000000L); /* Wait at start so we can see resets. */
 	BSP_led_off();
+#endif
 
 	/* Set up the switch inputs.  The 449STK2 board has external pullup
 	   resistors on these pins. */
@@ -163,6 +165,7 @@ void QF_onIdle(void)
 }
 
 
+#ifdef LED
 void BSP_led_on(void)
 {
 	P1OUT &= ~BIT3;
@@ -173,6 +176,7 @@ void BSP_led_off(void)
 {
 	P1OUT |= BIT3;
 }
+#endif
 
 
 static void

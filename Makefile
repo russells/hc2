@@ -23,6 +23,9 @@ CFLAGS = -std=gnu99 -mmcu=msp430f449 -Os -g -Wall -Werror -Iqpn/include -I.
 ifeq ($(SERIAL),yes)
 CFLAGS += -DSERIAL
 endif
+ifeq ($(LED),yes)
+CFLAGS += -DLED
+endif
 LDFLAGS = -mmcu=msp430f449
 
 %.d: %.c $(DEPDEPS)
