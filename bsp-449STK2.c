@@ -81,7 +81,7 @@ static void basic_timer1_rate(uint8_t rate)
 	BTCNT2 = 0;
 	btctl = BTCTL;
 	/* Reset the BTIPx bits.*/
-	btctl &= ~(BTIP2 | BTIP2 | BTIP0);
+	btctl &= ~(BTIP2 | BTIP1 | BTIP0);
 	btctl |= rate;		/* Now set the desired BTIPx bits. */
 	BTCTL = btctl;
 	BTCTL &= ~(BTHOLD);	/* Restart the timer. */
@@ -141,6 +141,9 @@ void BSP_init(void)
 	/* Set up the switch inputs.  The 449STK2 board has external pullup
 	   resistors on these pins. */
 	P3DIR = 0;
+
+	/* A pin for monitoring on time. */
+	P2DIR |= BIT0;
 }
 
 
@@ -155,6 +158,7 @@ void QF_onIdle(void)
 {
  idle:
 	BSP_led_off();
+	P2OUT &= ~(BIT0);
 	ENTER_LPM();
 	if (! timer_tick_done) {
 		goto idle;
@@ -183,6 +187,7 @@ static void
 __attribute__((__interrupt__(BASICTIMER_VECTOR)))
 isr_BASICTIMER(void)
 {
+	P2OUT |= BIT0;
 	BSP_led_on();
 	if (fast_timer) {
 		SERIALSTR("<F>");
@@ -334,6 +339,7 @@ isr_ADC12(void)
 	static int16_t previous_temperature = 0;
 
 	//Q_ASSERT(0); // yes
+	P2OUT |= BIT0;
 
 	adc = ADC12MEM10;
 	SERIALSTR("A: ");
