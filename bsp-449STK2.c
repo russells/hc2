@@ -41,7 +41,7 @@ static volatile uint8_t slow_timer_ticks = 0;
 /**
  * Set to tell QF_onIdle() that we need to do QP-nano processing now.
  */
-static volatile uint8_t timer_tick_done = 0;
+static volatile uint8_t enter_qp = 0;
 
 
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
@@ -160,12 +160,12 @@ void QF_onIdle(void)
 	BSP_led_off();
 	P2OUT &= ~(BIT0);
 	ENTER_LPM();
-	if (! timer_tick_done) {
+	if (! enter_qp) {
 		goto idle;
 	}
-	/* If timer_tick_done was true, we reset it for next time, and return
-	   to the QP-nano loop. */
-	timer_tick_done = 0;
+	/* If enter_qp was true, we reset it for next time, and return to the
+	   QP-nano loop. */
+	enter_qp = 0;
 }
 
 
@@ -192,18 +192,18 @@ isr_BASICTIMER(void)
 	if (fast_timer) {
 		SERIALSTR("<F>");
 		QF_tick();
-		timer_tick_done = 1;
+		enter_qp = 1;
 	} else {
 		if (! slow_timer_ticks) {
 			SERIALSTR("<S:Q>");
 			QF_tick();
 			slow_timer_ticks = SLOW_TIMER_TICKS;
-			timer_tick_done = 1;
+			enter_qp = 1;
 		} else {
 			if (BSP_cal_switch()) {
 				SERIALSTR("<S:Sw>");
 				QF_tick();
-				timer_tick_done = 1;
+				enter_qp = 1;
 			} else {
 				SERIALSTR("<S>");
 			}
@@ -314,8 +314,6 @@ void BSP_start_temperature_reading(void)
 
 void BSP_get_temperature(void)
 {
-	/* Wait for the voltage reference to stabilise. */
-	__delay_cycles(17000);	/* FIXME do this with an event? */
 	/* Enable our interrupt. */
 	ADC12IE = (1 << 10);
 	/* Start the encoder.  Start the conversion by toggling ADC12SC. */
@@ -360,6 +358,7 @@ isr_ADC12(void)
 	serial_send_int(temperature);
 	SERIALSTR("\r\n");
 	QActive_postISR((QActive*)(&hc), TEMPERATURE_SIGNAL, temperature);
+	enter_qp = 1;
 	ADC12IFG = 0;
 	ADC12IE = 0;
 
