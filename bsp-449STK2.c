@@ -14,6 +14,10 @@ Q_DEFINE_THIS_FILE;
 #include "bsp-449STK2.h"
 
 
+#define SB(_port,_bit) do { (_port) |=   (_bit);  } while(0)
+#define CB(_port,_bit) do { (_port) &= (~(_bit)); } while(0)
+
+
 static int16_t convert_adc_to_temperature(uint16_t adc);
 
 
@@ -114,6 +118,23 @@ void BSP_slow_timer(uint8_t reset)
 }
 
 
+static void temperature_input_init(void)
+{
+
+	/* P6.1 is used to power the MCP9700A.  Ensure the pin is output as low
+	   before we enable it, so we don't get a transient power supply on the
+	   chip. */
+	CB(P6OUT, BIT1);
+	SB(P6DIR, BIT1);
+	CB(P6SEL, BIT1);	/* IO function. */
+	/* P6.0 is the analogue input.  Set it as a digital input for now, and
+	   only change it to ADC input when required. */
+	CB(P6OUT, BIT0);
+	CB(P6DIR, BIT0);
+	CB(P6SEL, BIT0);	/* IO function. */
+}
+
+
 void BSP_init(void)
 {
 	WDTCTL = WDTPW | WDTHOLD; /* Stop the watchdog */
@@ -129,6 +150,8 @@ void BSP_init(void)
 	_BIS_SR(GIE);
 
 	basic_timer1_init();
+
+	temperature_input_init();
 
 #ifdef LED
 	P1DIR = BIT3;		/* LED output */
@@ -271,6 +294,9 @@ uint8_t BSP_down_switch(void)
 
 void BSP_start_temperature_reading(void)
 {
+	P6OUT |= BIT1;		/* Power up the MCP9700A */
+	P6SEL |= BIT0;		/* A0 function on pin P6.0 */
+
 	/* Ensure that ENC=0 before we start */
 	ADC12CTL0 = 0;
 	ADC12CTL0 =
@@ -302,8 +328,8 @@ void BSP_start_temperature_reading(void)
 	ADC12MCTL10 =
 		/* VR+=Vref+, VR-=AVss */
 		(SREF2 & 0) | (SREF1 & 0) | (SREF0)
-		/* Input channel = 1010 = temperature sensor */
-		| (INCH3) | (INCH2 & 0) | (INCH1) | (INCH0 & 0);
+		/* Input channel = 0000 = A0 */
+		| (INCH3 & 0) | (INCH2 & 0) | (INCH1 & 0) | (INCH0 & 0);
 	/* Reset all pending ADC12 interrupts. */
 	ADC12IFG = 0;
 	/* No more work here, as we need to wait for the reference to
@@ -342,9 +368,9 @@ isr_ADC12(void)
 	adc = ADC12MEM10;
 	SERIALSTR("A: ");
 	serial_send_int(adc);
-	/* The ADC value must move by at least two LSB before we regard it as
+	/* The ADC value must move by at least four LSB before we regard it as
 	   having changed.  This reduces jitter in the temperature readings. */
-	if (abs(adc - previous_adc) >= 2) {
+	if (abs(adc - previous_adc) >= 4) {
 		temperature = convert_adc_to_temperature(adc);
 		previous_temperature = temperature;
 		previous_adc = adc;
@@ -366,6 +392,9 @@ isr_ADC12(void)
 	ADC12CTL0 &= ~(ENC);
 	ADC12CTL0 = 0;
 
+	CB(P6OUT, BIT1);	/* Power down the MCP9700A */
+	SB(P6SEL, BIT0);	/* IO function on pin P6.0 */
+
 	EXIT_LPM();
 }
 
@@ -381,7 +410,7 @@ struct TempConversion {
 
 /* This .inc file contains definitions of the TempConversions array, the size
    of that array, and some extreme values that we use for direct comparison. */
-#include "bsp-449STK2-temperature-scale.inc"
+#include "bsp-MCP9701A-temperature-scale.inc"
 
 
 static int tccompare(const void *key, const void *entry)

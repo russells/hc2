@@ -38,9 +38,9 @@ default: $(ELFPROGRAM)
 $(ELFPROGRAM): $(OBJS)
 	$(LD) $(LDFLAGS) -o $(ELFPROGRAM) $(OBJS)
 
-bsp-449STK2.c: bsp-449STK2-temperature-scale.inc
+bsp-449STK2.c: bsp-MCP9701A-temperature-scale.inc
 
-bsp-449STK2-temperature-scale.inc bsp-449STK2-temperature-scale.h: bsp-449STK2-temperature-scale-creator.py
+bsp-MCP9701A-temperature-scale.inc bsp-MCP9701A-temperature-scale.h: bsp-MCP9701A-temperature-scale-creator.py
 	./$<
 
 .PHONY: flash
@@ -50,8 +50,8 @@ flash: $(ELFPROGRAM)
 .PHONY: clean
 clean:
 	rm -f $(ELFPROGRAM) $(OBJS) $(DEPS) \
-		bsp-449STK2-temperature-scale.inc \
-		bsp-449STK2-temperature-scale.h
+		bsp-*-temperature-scale.inc \
+		bsp-*-temperature-scale.h
 
 # Put this late so the first .o target does not become the default.
 ifneq ($(MAKECMDGOALS),clean)
