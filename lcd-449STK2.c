@@ -111,6 +111,8 @@ void lcd_showchar(char ch, uint8_t pos)
 
 	switch (ch & 0x7f) {		       /* ABCDEFGHJKMNPQ */
 	case ' ': lb = 0;               break; /* -------------- */
+	case '"': lb = B|J;             break;
+	case '\'':lb = J;               break;
 	case '+': lb = G|J|M|P;         break; /* ------G-J-M-P- */
 	case '-': lb = G|M;             break; /* ------G---M--- */
 

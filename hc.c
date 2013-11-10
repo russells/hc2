@@ -14,11 +14,24 @@
 Q_DEFINE_THIS_FILE;
 
 
+/**
+ * The startup banner message.
+ *
+ * Starts with seven spaces so the strings scrolls across starting at the
+ * right.  This avoids special case handling of the beginning of the string.
+ */
+static const char banner[] = "       \"HOTS'N'COLDS\" - FOR ANDREW AND KATE";
+
+
 struct Hc hc;
 
 static void hc_ctor(void);
 static QState hcInitial(struct Hc *me);
 static QState hcTop(struct Hc *me);
+
+static QState scroll(struct Hc *me);
+static QState scrollText(struct Hc *me);
+
 static QState hcPause(struct Hc *me);
 static QState hcTemperature(struct Hc *me);
 static QState hcGetTemperature(struct Hc *me);
@@ -66,7 +79,7 @@ static void hc_ctor(void)
 
 static QState hcInitial(struct Hc *me)
 {
-	return Q_TRAN(hcTemperature);
+	return Q_TRAN(scrollText);
 }
 
 
@@ -85,6 +98,40 @@ static QState hcTop(struct Hc *me)
 		return Q_HANDLED();
 	}
 	return Q_SUPER(QHsm_top);
+}
+
+
+static QState scroll(struct Hc *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		me->scrollstring = banner;
+		me->scrollindex = 0;
+		BSP_fast_timer();
+		return Q_HANDLED();
+	}
+	return Q_SUPER(hcTop);
+}
+
+
+static QState scrollText(struct Hc *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		strncpy(me->scrolltext, me->scrollstring+me->scrollindex, 7);
+		me->scrolltext[7] = '\0';
+		lcd_showstring(me->scrolltext);
+		QActive_arm((QActive*)me, 15);
+		return Q_HANDLED();
+	case Q_TIMEOUT_SIG:
+		me->scrollindex ++;
+		if (me->scrollstring[me->scrollindex]) {
+			return Q_TRAN(scrollText);
+		} else {
+			return Q_TRAN(hcTemperature);
+		}
+	}
+	return Q_SUPER(scroll);
 }
 
 
