@@ -55,8 +55,7 @@ void lcd_showchar(char ch, uint8_t pos)
 {
 	uint8_t index;
 	volatile char *lcdm = LCDMEM - 1; /* LCD register names are 1-based. */
-	uint8_t lcdm1 = 0xff;
-	uint8_t lcdm0 = 0xff;
+	uint16_t lb = 0x0000;
 
 	switch (pos) {
 	case 0: index = 19; break;
@@ -72,43 +71,130 @@ void lcd_showchar(char ch, uint8_t pos)
 		break;
 	}
 
-	switch (ch & 0x7f) {
-	case '0': lcdm1 = 0x62; lcdm0 = 0xf4; break;
-	case '1': lcdm1 = 0x00; lcdm0 = 0x60; break;
-	case '2': lcdm1 = 0x24; lcdm0 = 0xd2; break;
-	case '3': lcdm1 = 0x04; lcdm0 = 0xf2; break;
-	case '4': lcdm1 = 0x44; lcdm0 = 0x62; break;
-	case '5': lcdm1 = 0x44; lcdm0 = 0x91; break;
-	case '6': lcdm1 = 0x64; lcdm0 = 0xb2; break;
-	case '7': lcdm1 = 0x00; lcdm0 = 0xe0; break;
-	case '8': lcdm1 = 0x64; lcdm0 = 0xf2; break;
-	case '9': lcdm1 = 0x44; lcdm0 = 0xf2; break;
-	case 'H': lcdm1 = 0x64; lcdm0 = 0x62; break;
-	case 'O': lcdm1 = 0x60; lcdm0 = 0xf0; break;
-	case 'T': lcdm1 = 0x01; lcdm0 = 0x88; break;
-	case 'S': lcdm1 = 0x44; lcdm0 = 0xb2; break;
-	case 'C': lcdm1 = 0x60; lcdm0 = 0x90; break;
-	case 'L': lcdm1 = 0x60; lcdm0 = 0x10; break;
-	case 'D': lcdm1 = 0x01; lcdm0 = 0xf8; break;
-	case ' ': lcdm1 = 0x00; lcdm0 = 0x00; break;
-	case 'N': lcdm1 = 0x68; lcdm0 = 0x61; break;
-	case 'R': lcdm1 = 0x64; lcdm0 = 0xc3; break;
-	case 'M': lcdm1 = 0x68; lcdm0 = 0x64; break;
-	case 'A': lcdm1 = 0x64; lcdm0 = 0xe2; break;
-	case '-': lcdm1 = 0x04; lcdm0 = 0x02; break;
-	case '+': lcdm1 = 0x05; lcdm0 = 0x0a; break;
+	/*
+	  Segments:
+
+	       AAAAAAA
+	     F H  J  K B
+	     F  H J K  B
+	     F   HJK   B
+	       GGG MMM
+	     E   QPN   C
+	     E  Q P N  C
+	     E Q  P  N C
+	       DDDDDDD
+        */
+
+	/*
+	  Mappings from LCD segments to MCU LCD register bits.  Later, we
+	  extract this as two bytes, and worry about endianness there.
+
+	  C and N are defined as status register bits in the MSP430 headers.
+	 */
+	static const uint16_t F = 0x4000;
+	static const uint16_t E = 0x2000;
+	static const uint16_t H = 0x0800;
+	static const uint16_t G = 0x0400;
+	static const uint16_t Q = 0x0200;
+	static const uint16_t P = 0x0100;
+	static const uint16_t A = 0x0080;
+	static const uint16_t B = 0x0040;
+#undef C
+	static const uint16_t C = 0x0020;
+	static const uint16_t D = 0x0010;
+	static const uint16_t J = 0x0008;
+	static const uint16_t K = 0x0004;
+	static const uint16_t M = 0x0002;
+#undef N
+	static const uint16_t N = 0x0001;
+
+
+	switch (ch & 0x7f) {		       /* ABCDEFGHJKMNPQ */
+	case ' ': lb = 0;               break; /* -------------- */
+	case '+': lb = G|J|M|P;         break; /* ------G-J-M-P- */
+	case '-': lb = G|M;             break; /* ------G---M--- */
+
+	case '0': lb = A|B|C|D|E|F|K|Q; break; /* ABCDEF---K---Q */
+	case '1': lb = B|C|K;           break; /* -BC------K---- */
+	case '2': lb = A|B|D|E|G|M;     break; /* AB-DE-G---M--- */
+	case '3': lb = A|B|C|D|M;       break; /* ABCD------M--- */
+	case '4': lb = B|C|F|G|M;       break; /* -BC--FG---M--- */
+	case '5': lb = A|D|F|G|N;       break; /* A--D-FG----N-- */
+	case '6': lb = A|C|D|E|F|G|M;   break; /* A-CDEFG---M--- */
+	case '7': lb = A|B|C;           break; /* ABC----------- */
+	case '8': lb = A|B|C|D|E|F|G|M; break; /* ABCDEFG---M--- */
+	case '9': lb = A|B|C|D|F|G|M;   break; /* ABCD-FG---M--- */
+
+	case 'A': lb = A|B|C|E|F|G|M;   break; /* ABC-EFG---M--- */
+	case 'B': lb = A|B|C|D|J|M|P;   break; /* ABCD----J-M-P- */
+	case 'C': lb = A|D|E|F;         break; /* A--DEF-------- */
+	case 'D': lb = A|B|C|D|J|P;     break; /* ABCD----J---P- */
+	case 'E': lb = A|D|E|F|G;       break; /* A--DEFG------- */
+	case 'F': lb = A|E|F|G;         break; /* A---EFG------- */
+	case 'G': lb = A|C|D|E|F|M;     break; /* A-CDEF----M--- */
+	case 'H': lb = B|C|E|F|G|M;     break; /* -BC-EFG---M--- */
+	case 'I': lb = A|D|J|P;         break; /* A--D----J---P- */
+	case 'J': lb = B|C|D|E;         break; /* -BCDE--------- */
+	case 'K': lb = E|F|G|K|N;       break; /* ----EFG--K-N-- */
+	case 'L': lb = D|E|F;           break; /* ---DEF-------- */
+	case 'M': lb = B|C|E|F|H|K;     break; /* -BC-EF-H-K---- */
+	case 'N': lb = B|C|E|F|H|N;     break; /* -BC-EF-H---N-- */
+	case 'O': lb = A|B|C|D|E|F;     break; /* ABCDEF-------- */
+	case 'P': lb = A|B|E|F|G|M;     break; /* AB--EFG---M--- */
+	case 'Q': lb = A|B|C|D|E|F|N;   break; /* ABCDEF-----N-- */
+	case 'R': lb = A|B|E|F|G|M|N;   break; /* AB--EFG---MN-- */
+	case 'S': lb = A|C|D|F|G|M;     break; /* A-CD-FG---M--- */
+	case 'T': lb = A|J|P;           break; /* A-------J---P- */
+	case 'U': lb = B|C|D|E|F;       break; /* -BCDEF-------- */
+	case 'V': lb = E|F|K|Q;         break; /* ----EF---K---Q */
+	case 'W': lb = B|C|E|F|N|Q;     break; /* -BC-EF-----N-Q */
+	case 'X': lb = H|K|N|Q;         break; /* -------H-K-N-Q */
+	case 'Y': lb = B|F|G|M|P;       break; /* -B---FG---M-P- */
+	case 'Z': lb = A|D|K|Q;         break; /* A--D------K--Q */
+
+	case 'a': lb = D|E|G|H|P;       break;
+	case 'b': lb = D|E|F|G|P;       break;
+	case 'c': lb = D|E|G;           break;
+	case 'd': lb = D|E|G|J|P;       break;
+	case 'e': lb = D|E|G|Q;         break;
+	case 'f': lb = A|J|M|P;         break;
+	case 'g': lb = A|D|F|G|J|P;     break;
+	case 'h': lb = E|F|G|P;         break;
+	case 'i': lb = P;               break;
+	case 'j': lb = E|J|Q;           break;
+	case 'k': lb = J|K|N|P;         break;
+	case 'l': lb = J|P;             break;
+	case 'm': lb = C|E|G|M|P;       break;
+	case 'n': lb = E|G|P;           break;
+	case 'o': lb = C|D|E|G|M;       break;
+	case 'p': lb = A|E|F|G|J;       break;
+	case 'q': lb = A|F|G|J|P;       break;
+	case 'r': lb = E|G;             break;
+	case 's': lb = A|D|F|G|P;       break;
+	case 't': lb = G|J|M|P;         break;
+	case 'u': lb = D|E|P;           break;
+	case 'v': lb = E|Q;             break;
+	case 'w': lb = C|E|N|Q;         break;
+	case 'x': lb = H|K|N|Q;         break;
+	case 'y': lb = H|K|P;           break;
+	case 'z': lb = D|G|Q;           break;
 	default:
 		Q_ASSERT(0);
 		break;
 	}
-	//serial_send_hex_int(lcdm1);
-	//serial_send_char(',');
-	//serial_send_hex_int(lcdm0);
+	//serial_send_hex_int(lb);
 	//serial_send_char(' ');
+
+
 	/* We only set the bits for the segments we've turned on, so we don't
 	   accidentally turn off other segments. */
-	lcdm[index+1] |= lcdm1;
-	lcdm[index  ] |= lcdm0;
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	lcdm[index  ] |= *((uint8_t*)(&lb));
+	lcdm[index+1] |= *(((uint8_t*)(&lb))+1);
+#else
+#error no lcdm code for big endian
+#endif
+
 	if (ch & 0x80) {
 		/* The DP is in the next lower LCD memory location, with
 		   segments from the next character. */
