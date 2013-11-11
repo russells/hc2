@@ -29,6 +29,7 @@
 #define qpn_port_h
 
 #define Q_NFSM
+#define Q_NMSM
 #define Q_PARAM_SIZE            2
 #define QF_TIMEEVT_CTR_SIZE     1
 
