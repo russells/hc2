@@ -87,7 +87,6 @@ static QState hcTop(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		BSP_slow_timer(1);
 		lcd_clear();
 		break;
 	case WATCHDOG_SIGNAL:
@@ -107,7 +106,7 @@ static QState scroll(struct Hc *me)
 	case Q_ENTRY_SIG:
 		me->scrollstring = banner;
 		me->scrollindex = 0;
-		BSP_fast_timer();
+		BSP_fast_timer(1);
 		return Q_HANDLED();
 	}
 	return Q_SUPER(hcTop);
@@ -121,9 +120,9 @@ static QState scrollText(struct Hc *me)
 		strncpy(me->scrolltext, me->scrollstring+me->scrollindex, 7);
 		me->scrolltext[7] = '\0';
 		lcd_showstring(me->scrolltext);
-		QActive_arm((QActive*)me, 15);
+		QActive_armX((QActive*)me, 1, 15);
 		return Q_HANDLED();
-	case Q_TIMEOUT_SIG:
+	case Q_TIMEOUT1_SIG:
 		me->scrollindex ++;
 		if (me->scrollstring[me->scrollindex]) {
 			return Q_TRAN(scrollText);
@@ -139,7 +138,7 @@ static QState hcCalibrate(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		BSP_fast_timer();
+		BSP_fast_timer(1);
 		return Q_HANDLED();
 	case Q_EXIT_SIG:
 		BSP_save_calibration(me->calibration);
@@ -156,9 +155,9 @@ static QState hcCalibratePause(struct Hc *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		QActive_arm((QActive*)me, 6);
+		QActive_armX((QActive*)me, 1, 25);
 		return Q_HANDLED();
-	case Q_TIMEOUT_SIG:
+	case Q_TIMEOUT1_SIG:
 		if (! BSP_cal_switch()) {
 			SERIALSTR("hcCP no sw\r\n");
 			return Q_TRAN(hcTemperature);
@@ -175,11 +174,14 @@ static QState hcCalibrateTemperature(struct Hc *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		SERIALSTR("hcCT\r\n");
-		BSP_fast_timer();
 		BSP_start_temperature_reading();
-		QActive_arm((QActive*)me, 2);
+		/* The short ticks in the BSP are especially designed so we
+		   need only one tick to allow the ADC voltage reference to
+		   stabilise. */
+		BSP_fast_timer(1);
+		QActive_armX((QActive*)me, 1, 1);
 		return Q_HANDLED();
-	case Q_TIMEOUT_SIG:
+	case Q_TIMEOUT1_SIG:
 		return Q_TRAN(hcCalibrateGetTemperature);
 	}
 	return Q_SUPER(hcCalibrate);
@@ -191,9 +193,9 @@ static QState hcCalibrateGetTemperature(struct Hc *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		BSP_get_temperature();
-		BSP_fast_timer(); /* This resets the timer, so we get two
-				     complete ticks. */
-		QActive_arm((QActive*)me, 2);
+		BSP_fast_timer(1); /* This resets the timer, so we get two
+				      complete ticks. */
+		QActive_armX((QActive*)me, 1, 2);
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
 		me->ti = Q_PAR(me);
@@ -206,7 +208,7 @@ static QState hcCalibrateGetTemperature(struct Hc *me)
 		}
 		show_temperature_cal(me);
 		return Q_TRAN(hcCalibratePause);
-	case Q_TIMEOUT_SIG:
+	case Q_TIMEOUT1_SIG:
 		return Q_TRAN(hcCalibratePause);
 	}
 	return Q_SUPER(hcCalibrateTemperature);
@@ -218,7 +220,7 @@ static QState hcPause(struct Hc *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		SERIALSTR("hcPause\r\n");
-		BSP_slow_timer(0);
+		BSP_fast_timer(0);
 		QActive_arm((QActive*)me, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
@@ -237,13 +239,13 @@ static QState hcTemperature(struct Hc *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		SERIALSTR("hcTemp\r\n");
-		BSP_fast_timer();
+		BSP_fast_timer(1);
 		// Start reading the temperature.
 		BSP_start_temperature_reading();
 		// If we time out, go back to just waiting.
-		QActive_arm((QActive*)me, 1);
+		QActive_armX((QActive*)me, 1, 1);
 		return Q_HANDLED();
-	case Q_TIMEOUT_SIG:
+	case Q_TIMEOUT1_SIG:
 		return Q_TRAN(hcGetTemperature);
 	}
 	return Q_SUPER(hcTop);
@@ -258,7 +260,7 @@ static QState hcGetTemperature(struct Hc *me)
 	case Q_ENTRY_SIG:
 		SERIALSTR("hcGet\r\n");
 		BSP_get_temperature();
-		QActive_arm((QActive*)me, 2);
+		QActive_armX((QActive*)me, 1, 2);
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
 		ti = (int16_t) Q_PAR(me);
@@ -268,7 +270,7 @@ static QState hcGetTemperature(struct Hc *me)
 			show_temperature(me);
 		}
 		return Q_TRAN(hcPause);
-	case Q_TIMEOUT_SIG:
+	case Q_TIMEOUT1_SIG:
 		return Q_TRAN(hcPause);
 	}
 	return Q_SUPER(hcTemperature);

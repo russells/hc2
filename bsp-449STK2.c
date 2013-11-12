@@ -8,7 +8,7 @@
 #include <string.h>
 
 
-Q_DEFINE_THIS_FILE;
+Q_DEFINE_THIS_MODULE("b");
 
 
 #include "bsp-449STK2.h"
@@ -28,24 +28,9 @@ static int16_t convert_adc_to_temperature(uint16_t adc);
 
 
 /**
- * Set when we have the fast timer tick running.
- *
- * When set, we return to the QP-nano loop after every tick.  When not set, we
- * only return every SLOW_TIMER_TICKS ticks, to reduct power consumption.
- */
-static volatile uint8_t fast_timer = 0;
-
-
-/**
  * Count slow timer ticks, so we know when to return to QP-nano.
  */
 static volatile uint8_t slow_timer_ticks = 0;
-
-
-/**
- * Set to tell QF_onIdle() that we need to do QP-nano processing now.
- */
-static volatile uint8_t enter_qp = 0;
 
 
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
@@ -76,44 +61,29 @@ basic_timer1_init(void)
 }
 
 
-static void basic_timer1_rate(uint8_t rate)
+static void timer_a_init(void)
 {
-	uint8_t btctl;
+	TACTL = (TASSEL1 & 0) | TASSEL0 | /* ACLK */
+		(ID1 & 0) | (ID0 & 0) |	  /* /1 */
+		(MC1 & 0) | (MC0 & 0) |	  /* Stop mode */
+		(TAIE & 0);		  /* Interrupts off */
+	TAR = 0;
+	TACCR0 = 590;		/* With 32768Hz clock, about 18ms */
 
-	BTCTL |= BTHOLD;	/* Stop the timer. */
-	BTCNT1 = 0;		/* Reset the counters. */
-	BTCNT2 = 0;
-	btctl = BTCTL;
-	/* Reset the BTIPx bits.*/
-	btctl &= ~(BTIP2 | BTIP1 | BTIP0);
-	btctl |= rate;		/* Now set the desired BTIPx bits. */
-	BTCTL = btctl;
-	BTCTL &= ~(BTHOLD);	/* Restart the timer. */
+	TACCTL0 = CCIE;
 }
 
 
-void BSP_fast_timer(void)
+void BSP_fast_timer(uint8_t onoff)
 {
-	/* BTIPx=001, fCLK2/2 = 32Hz, period = 31.25ms.  The ADC reference
-	 wants 17ms to stabilise, so the next shorter period (15.625ms) is too
-	 short. */
-	basic_timer1_rate(0b001);
-	fast_timer = 77;
-}
-
-
-/**
- * Change the timer to give us long intervals.
- *
- * @param reset if true, start counting from the longest interval.
- */
-void BSP_slow_timer(uint8_t reset)
-{
-	// BTIPx=111, fCLK2/256 = 0.5HZ, period = 2s
-	basic_timer1_rate(0b111);
-	fast_timer = 0;
-	if (reset) {
-		slow_timer_ticks = 0;
+	if (onoff) {
+		SERIALSTR("+");
+		/* Start TIMER_A */
+		TAR = 0;
+		TACTL |= (MC0);	/* Up mode */
+	} else {
+		SERIALSTR("-");
+		CB(TACTL, MC0);
 	}
 }
 
@@ -150,6 +120,7 @@ void BSP_init(void)
 	_BIS_SR(GIE);
 
 	basic_timer1_init();
+	timer_a_init();
 
 	temperature_input_init();
 
@@ -179,16 +150,10 @@ void QF_onStartup(void)
 
 void QF_onIdle(void)
 {
- idle:
+	//SERIALSTR(",");
 	BSP_led_off();
 	P2OUT &= ~(BIT0);
 	ENTER_LPM();
-	if (! enter_qp) {
-		goto idle;
-	}
-	/* If enter_qp was true, we reset it for next time, and return to the
-	   QP-nano loop. */
-	enter_qp = 0;
 }
 
 
@@ -207,32 +172,25 @@ void BSP_led_off(void)
 
 
 static void
+__attribute__((__interrupt__(TIMERA0_VECTOR)))
+isr_TIMERA0(void)
+{
+	SERIALSTR("{A}");
+	BSP_led_on();
+	QF_tickXISR(1);
+	EXIT_LPM();
+}
+
+
+static void
 __attribute__((__interrupt__(BASICTIMER_VECTOR)))
 isr_BASICTIMER(void)
 {
+	SERIALSTR("<B>");
+
 	P2OUT |= BIT0;
 	BSP_led_on();
-	if (fast_timer) {
-		SERIALSTR("<F>");
-		QF_tick();
-		enter_qp = 1;
-	} else {
-		if (! slow_timer_ticks) {
-			SERIALSTR("<S:Q>");
-			QF_tick();
-			slow_timer_ticks = SLOW_TIMER_TICKS;
-			enter_qp = 1;
-		} else {
-			if (BSP_cal_switch()) {
-				SERIALSTR("<S:Sw>");
-				QF_tick();
-				enter_qp = 1;
-			} else {
-				SERIALSTR("<S>");
-			}
-			slow_timer_ticks --;
-		}
-	}
+	QF_tick();
 	EXIT_LPM();
 }
 
@@ -384,7 +342,6 @@ isr_ADC12(void)
 	serial_send_int(temperature);
 	SERIALSTR("\r\n");
 	QActive_postISR((QActive*)(&hc), TEMPERATURE_SIGNAL, temperature);
-	enter_qp = 1;
 	ADC12IFG = 0;
 	ADC12IE = 0;
 
