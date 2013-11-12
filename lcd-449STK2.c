@@ -238,9 +238,11 @@ void lcd_showchar(char ch, uint8_t pos)
 #endif
 
 	if (ch & 0x80) {
+		/* There is no DP on the 7th character. */
+		Q_ASSERT( pos != 6 );
 		/* The DP is in the next lower LCD memory location, with
 		   segments from the next character. */
-		lcdm_chars[index-1] |= 0x10;
+		lcdm_chars[index-2] |= 0x10;
 	}
 }
 
