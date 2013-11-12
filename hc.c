@@ -5,6 +5,7 @@
 #include "hc.h"
 #include "bsp.h"
 #include "lcd.h"
+#include "rtc.h"
 #include "serial.h"
 /* Contains declarations of temperature sensing ranges: MINTI, MAXTI,
    NCONVERSIONS. */
@@ -45,10 +46,12 @@ static void show_temperature_cal(struct Hc *me);
 
 
 static QEvent hcQueue[4];
+static QEvent rtcQueue[4];
 
 QActiveCB const Q_ROM Q_ROM_VAR QF_active[] = {
 	{ (QActive*)0           , (QEvent*)0   , 0                   },
 	{ (QActive *) (&hc)     , hcQueue      , Q_DIM(hcQueue)      },
+	{ (QActive *) (&rtc)    , rtcQueue     , Q_DIM(rtcQueue)     },
 };
 Q_ASSERT_COMPILE( QF_MAX_ACTIVE == Q_DIM(QF_active) - 1 );
 
@@ -61,6 +64,7 @@ int main(void)
 	SERIALSTR("\r\n\r\n*** Hots and Colds ***\r\n");
 	lcd_init();
 	hc_ctor();
+	rtc_ctor();
 	SERIALSTR("Let's go...\r\n");
 	QF_run();
 	goto startmain;
@@ -88,6 +92,7 @@ static QState hcTop(struct Hc *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		lcd_clear();
+		lcd_showdigits("6789");
 		break;
 	case WATCHDOG_SIGNAL:
 		// TODO: watchdog reset

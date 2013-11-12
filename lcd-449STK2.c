@@ -7,6 +7,42 @@
 Q_DEFINE_THIS_FILE;
 
 
+/** A copy of the LCD register data specific to the four digit display at the
+    top right of the LCD unit.  This data is merged into the LCD registers. */
+static uint8_t lcdm_digits[20];
+
+/** A copy of the LCD register data specific to the 14 segment characters.
+    This data is merged into the LCD registers. */
+static uint8_t lcdm_chars[20];
+
+/** If set, the colon in the time display is on. */
+static uint8_t colon = 0;
+
+
+/** Turn on the colon if needed. */
+static void display_colon(void)
+{
+	if (colon) {
+		SERIALSTR("(-:-)");
+		LCDM4 |= 0x80;
+	} else {
+		SERIALSTR("(-.-)");
+		LCDM4 &= 0x7f;
+	}
+}
+
+
+static void write_lcd_registers(void)
+{
+	volatile char *lcdm = LCDMEM;
+
+	for (int i=0; i<20; i++) {
+		lcdm[i] = (lcdm_digits[i] | lcdm_chars[i]);
+	}
+	display_colon();
+}
+
+
 void lcd_init(void)
 {
 	uint8_t btctl;
@@ -16,6 +52,11 @@ void lcd_init(void)
 	LCDM9  = 0x55; LCDM10 = 0x55; LCDM11 = 0x55; LCDM12 = 0x55;
 	LCDM13 = 0x55; LCDM14 = 0x55; LCDM15 = 0x55; LCDM16 = 0x55;
 	LCDM17 = 0x55; LCDM18 = 0x55; LCDM19 = 0x55; LCDM20 = 0x55;
+
+	for (int i=0; i<20; i++) {
+		lcdm_digits[i] = 0;
+		lcdm_chars[i] = 0;
+	}
 
 	/* Assume the timer is already set up, and only change the bits for the
 	   LCD. */
@@ -54,7 +95,6 @@ void lcd_clear(void)
 void lcd_showchar(char ch, uint8_t pos)
 {
 	uint8_t index;
-	volatile char *lcdm = LCDMEM - 1; /* LCD register names are 1-based. */
 	uint16_t lb = 0x0000;
 
 	switch (pos) {
@@ -191,8 +231,8 @@ void lcd_showchar(char ch, uint8_t pos)
 	/* We only set the bits for the segments we've turned on, so we don't
 	   accidentally turn off other segments. */
 #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
-	lcdm[index  ] |= *((uint8_t*)(&lb));
-	lcdm[index+1] |= *(((uint8_t*)(&lb))+1);
+	lcdm_chars[index-1] |= *((uint8_t*)(&lb));
+	lcdm_chars[index  ] |= *(((uint8_t*)(&lb))+1);
 #else
 #error no lcdm code for big endian
 #endif
@@ -200,7 +240,7 @@ void lcd_showchar(char ch, uint8_t pos)
 	if (ch & 0x80) {
 		/* The DP is in the next lower LCD memory location, with
 		   segments from the next character. */
-		lcdm[index-1] |= 0x10;
+		lcdm_chars[index-1] |= 0x10;
 	}
 }
 
@@ -209,7 +249,12 @@ void lcd_showstring(const char *s)
 {
 	uint8_t pos;
 
-	lcd_clear();
+	//lcd_clear();
+
+	for (int i=0; i<20; i++) {
+		lcdm_chars[i] = 0;
+	}
+
 	//SERIALSTR("S: \"");
 	//serial_send(s);
 	//SERIALSTR("\"\r\n");
@@ -220,5 +265,98 @@ void lcd_showstring(const char *s)
 		s++;
 		pos++;
 	}
+	write_lcd_registers();
 	//SERIALSTR("\r\n");
+}
+
+
+static void lcd_showdigit(const char c, uint8_t pos)
+{
+	int index;
+	uint8_t lb;
+
+	/*
+	  Mapping from LCD segments to MCU register bits for digits 8 and 9 on
+	  the SBLCDA2.
+	 */
+	static const uint8_t A89 = 0x01;
+	static const uint8_t B89 = 0x02;
+	static const uint8_t C89 = 0x04;
+	static const uint8_t D89 = 0x80;
+	static const uint8_t E89 = 0x40;
+	static const uint8_t F89 = 0x10;
+	static const uint8_t G89 = 0x20;
+
+	/*
+	  Mapping from LCD segments to MCU register bits for digits 10 and 11
+	  on the SBLCDA2.
+	 */
+	static const uint8_t A10 = 0x10;
+	static const uint8_t B10 = 0x01;
+	static const uint8_t C10 = 0x04;
+	static const uint8_t D10 = 0x08;
+	static const uint8_t E10 = 0x40;
+	static const uint8_t F10 = 0x20;
+	static const uint8_t G10 = 0x02;
+
+	Q_ASSERT( pos < 4 );
+
+	index = 5 - pos;
+
+	if ( (0 == pos) || (1 == pos) ) {
+		switch (c) {
+		case '0': lb = A89|B89|C89|D89|E89|F89;     break;
+		case '1': lb = B89|C89;                     break;
+		case '2': lb = A89|B89|D89|E89|G89;         break;
+		case '3': lb = A89|B89|C89|D89|G89;         break;
+		case '4': lb = B89|C89|F89|G89;             break;
+		case '5': lb = A89|C89|D89|F89|G89;         break;
+		case '6': lb = A89|C89|D89|E89|F89|G89;     break;
+		case '7': lb = A89|B89|C89;                 break;
+		case '8': lb = A89|B89|C89|D89|E89|F89|G89; break;
+		case '9': lb = A89|B89|C89|D89|F89|G89;     break;
+		default:  lb = 0xff; Q_ASSERT( 0 );         break;
+		}
+	} else {
+		switch (c) {
+		case '0': lb = A10|B10|C10|D10|E10|F10;     break;
+		case '1': lb = B10|C10;                     break;
+		case '2': lb = A10|B10|D10|E10|G10;         break;
+		case '3': lb = A10|B10|C10|D10|G10;         break;
+		case '4': lb = B10|C10|F10|G10;             break;
+		case '5': lb = A10|C10|D10|F10|G10;         break;
+		case '6': lb = A10|C10|D10|E10|F10|G10;     break;
+		case '7': lb = A10|B10|C10;                 break;
+		case '8': lb = A10|B10|C10|D10|E10|F10|G10; break;
+		case '9': lb = A10|B10|C10|D10|F10|G10;     break;
+		default:  lb = 0xff; Q_ASSERT( 0 );         break;
+		}
+	}
+
+	/* We have to OR in the bits we want set as the registers for these
+	   digits have bits for more than one digit. */
+	lcdm_digits[index] |= lb;
+}
+
+
+void lcd_showdigits(const char *ds)
+{
+	uint8_t i;
+
+	for (i=0; i<20; i++) {
+		lcdm_digits[i] = 0;
+	}
+
+	for (i=0; i<4; i++) {
+		lcd_showdigit(ds[i], i);
+	}
+
+	write_lcd_registers();
+}
+
+
+void lcd_colon(uint8_t onoff)
+{
+	colon = onoff;
+	display_colon();
 }
