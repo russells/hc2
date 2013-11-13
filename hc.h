@@ -38,6 +38,48 @@ enum HcSignals {
 	 * 4==2C, and -1==-0.5C, -2==-1C.  40==20C=="NORMAL".
 	 */
 	TEMPERATURE_SIGNAL,
+
+	/**
+	 * Send from Buttons to its constituent Button HSMs to tell them that
+	 * their button is pressed.
+	 */
+	BUTTON_PRESSED_SIGNAL,
+
+	/**
+	 * Sent fromButtons to its constituent Button HSMs to tell them that
+	 * their button is not pressed.
+	 */
+	BUTTON_RELEASED_SIGNAL,
+
+	/** Button 1 is held down. */
+	B_1_DOWN_SIGNAL,
+	/** Button 2 is held down. */
+	B_2_DOWN_SIGNAL,
+	/** Button 3 is held down. */
+	B_3_DOWN_SIGNAL,
+
+	/** Button 1 is not held down. */
+	B_1_UP_SIGNAL,
+	/** Button 2 is not held down. */
+	B_2_UP_SIGNAL,
+	/** Button 3 is not held down. */
+	B_3_UP_SIGNAL,
+
+	BUTTON_1_PRESS_SIGNAL,
+	BUTTON_1_LONG_PRESS_SIGNAL,
+	BUTTON_1_REPEAT_SIGNAL,
+	BUTTON_1_RELEASE_SIGNAL,
+
+	BUTTON_2_PRESS_SIGNAL,
+	BUTTON_2_LONG_PRESS_SIGNAL,
+	BUTTON_2_REPEAT_SIGNAL,
+	BUTTON_2_RELEASE_SIGNAL,
+
+	BUTTON_3_PRESS_SIGNAL,
+	BUTTON_3_LONG_PRESS_SIGNAL,
+	BUTTON_3_REPEAT_SIGNAL,
+	BUTTON_3_RELEASE_SIGNAL,
+
 	MAX_PUB_SIG,
 	MAX_SIG,
 };

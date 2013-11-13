@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include "hc.h"
+#include "buttons.h"
 #include "bsp.h"
 #include "lcd.h"
 #include "rtc.h"
@@ -47,11 +48,13 @@ static void show_temperature_cal(struct Hc *me);
 
 static QEvent hcQueue[4];
 static QEvent rtcQueue[4];
+static QEvent buttonsQueue[8];
 
 QActiveCB const Q_ROM Q_ROM_VAR QF_active[] = {
 	{ (QActive*)0           , (QEvent*)0   , 0                   },
 	{ (QActive *) (&hc)     , hcQueue      , Q_DIM(hcQueue)      },
 	{ (QActive *) (&rtc)    , rtcQueue     , Q_DIM(rtcQueue)     },
+	{ (QActive *) (&buttons), buttonsQueue , Q_DIM(buttonsQueue) },
 };
 Q_ASSERT_COMPILE( QF_MAX_ACTIVE == Q_DIM(QF_active) - 1 );
 
@@ -64,6 +67,7 @@ int main(void)
 	SERIALSTR("\r\n\r\n*** Hots and Colds ***\r\n");
 	lcd_init();
 	hc_ctor();
+	buttons_ctor();
 	rtc_ctor();
 	SERIALSTR("Let's go...\r\n");
 	QF_run();
@@ -113,6 +117,16 @@ static QState scroll(struct Hc *me)
 		me->scrollindex = 0;
 		BSP_fast_timer(1);
 		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_1_LONG_PRESS_SIGNAL:
+	case BUTTON_1_REPEAT_SIGNAL:
+	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_2_LONG_PRESS_SIGNAL:
+	case BUTTON_2_REPEAT_SIGNAL:
+	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_3_LONG_PRESS_SIGNAL:
+	case BUTTON_3_REPEAT_SIGNAL:
+		return Q_TRAN(hcTemperature);
 	}
 	return Q_SUPER(hcTop);
 }
@@ -145,6 +159,27 @@ static QState hcCalibrate(struct Hc *me)
 	case Q_ENTRY_SIG:
 		BSP_fast_timer(1);
 		return Q_HANDLED();
+	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_2_LONG_PRESS_SIGNAL:
+	case BUTTON_2_REPEAT_SIGNAL:
+		if (me->calibration < MAX_CAL) {
+			SERIALSTR("up\r\n");
+			me->calibration ++;
+			show_temperature_cal(me);
+		}
+		return Q_HANDLED();
+	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_3_LONG_PRESS_SIGNAL:
+	case BUTTON_3_REPEAT_SIGNAL:
+		if (me->calibration > MIN_CAL) {
+			SERIALSTR("down\r\n");
+			me->calibration --;
+			show_temperature_cal(me);
+		}
+		return Q_HANDLED();
+	case BUTTON_1_RELEASE_SIGNAL:
+		SERIALSTR("b1up\r\n");
+		return Q_TRAN(hcTemperature);
 	case Q_EXIT_SIG:
 		BSP_save_calibration(me->calibration);
 		/* Save this as an invalid value, so at the next tick
@@ -163,12 +198,7 @@ static QState hcCalibratePause(struct Hc *me)
 		QActive_armX((QActive*)me, 1, 25);
 		return Q_HANDLED();
 	case Q_TIMEOUT1_SIG:
-		if (! BSP_cal_switch()) {
-			SERIALSTR("hcCP no sw\r\n");
-			return Q_TRAN(hcTemperature);
-		} else {
-			return Q_TRAN(hcCalibrateTemperature);
-		}
+		return Q_TRAN(hcCalibrateTemperature);
 	}
 	return Q_SUPER(hcCalibrate);
 }
@@ -204,13 +234,6 @@ static QState hcCalibrateGetTemperature(struct Hc *me)
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
 		me->ti = Q_PAR(me);
-		if (BSP_up_switch() && (me->calibration < MAX_CAL)) {
-			SERIALSTR("up\r\n");
-			me->calibration ++;
-		} else if (BSP_down_switch() && (me->calibration > MIN_CAL)) {
-			SERIALSTR("down\r\n");
-			me->calibration --;
-		}
 		show_temperature_cal(me);
 		return Q_TRAN(hcCalibratePause);
 	case Q_TIMEOUT1_SIG:
@@ -229,11 +252,9 @@ static QState hcPause(struct Hc *me)
 		QActive_arm((QActive*)me, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
-		if (BSP_cal_switch()) {
-			return Q_TRAN(hcCalibrateTemperature);
-		} else {
-			return Q_TRAN(hcTemperature);
-		}
+		return Q_TRAN(hcTemperature);
+	case BUTTON_1_PRESS_SIGNAL:
+		return Q_TRAN(hcCalibrateTemperature);
 	}
 	return Q_SUPER(hcTop);
 }

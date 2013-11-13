@@ -1,5 +1,6 @@
 #include "bsp.h"
 #include "hc.h"
+#include "buttons.h"
 #include "qpn_port.h"
 #include "morse.h"
 #include "serial.h"
@@ -84,6 +85,12 @@ void BSP_fast_timer(uint8_t onoff)
 	} else {
 		SERIALSTR("-");
 		CB(TACTL, MC0);
+
+		/* We are turning off the fast timer interrupt that scans the
+		   buttons, so tell the buttons state machine about that. */
+		QActive_postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
+		QActive_postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
+		QActive_postISR((QActive*)(&buttons), B_3_UP_SIGNAL, 0);
 	}
 }
 
@@ -178,6 +185,27 @@ isr_TIMERA0(void)
 	SERIALSTR("{A}");
 	BSP_led_on();
 	QF_tickXISR(1);
+	if (BSP_cal_switch()) {
+		SERIALSTR("\\1");
+		QActive_postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
+	} else {
+		SERIALSTR("/1");
+		QActive_postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
+	}
+	if (BSP_down_switch()) {
+		SERIALSTR("\\2");
+		QActive_postISR((QActive*)(&buttons), B_2_DOWN_SIGNAL, 0);
+	} else {
+		SERIALSTR("/2");
+		QActive_postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
+	}
+	if (BSP_up_switch()) {
+		SERIALSTR("\\3");
+		QActive_postISR((QActive*)(&buttons), B_3_DOWN_SIGNAL, 0);
+	} else {
+		SERIALSTR("/3");
+		QActive_postISR((QActive*)(&buttons), B_3_UP_SIGNAL, 0);
+	}
 	EXIT_LPM();
 }
 
@@ -190,6 +218,16 @@ isr_BASICTIMER(void)
 
 	P2OUT |= BIT0;
 	BSP_led_on();
+	if (BSP_cal_switch()) {
+		SERIALSTR("\\1");
+		/* We send the button press signal here (rather than relying on
+		   buttons.c to do it) because it's only when hc is told about
+		   the button being down that it starts the fast timer. */
+		QActive_postISR((QActive*)(&hc), BUTTON_1_PRESS_SIGNAL, 0);
+		QActive_postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
+	}
+	/* We have to call QF_tick() after the button events because some parts
+	   of hc (hcTemperature() etc) ignore button events. */
 	QF_tick();
 	EXIT_LPM();
 }
