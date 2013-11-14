@@ -26,13 +26,19 @@ enum HcSignals {
 	TEMPERATURE_SIGNAL,
 
 	/**
+	 * Sent to the UI when the time changes.  Q_PAR() is a pointer to four
+	 * characters ('0' to '9') to display on the time section.
+	 */
+	TIME_SIGNAL,
+
+	/**
 	 * Send from Buttons to its constituent Button HSMs to tell them that
 	 * their button is pressed.
 	 */
 	BUTTON_PRESSED_SIGNAL,
 
 	/**
-	 * Sent fromButtons to its constituent Button HSMs to tell them that
+	 * Sent from Buttons to its constituent Button HSMs to tell them that
 	 * their button is not pressed.
 	 */
 	BUTTON_RELEASED_SIGNAL,

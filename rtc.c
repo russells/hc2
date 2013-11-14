@@ -1,4 +1,5 @@
 #include "rtc.h"
+#include "ui.h"
 #include "lcd.h"
 
 /**
@@ -25,11 +26,11 @@ struct RTC rtc;
 void rtc_ctor(void)
 {
 	QActive_ctor((QActive*)(&rtc), (QStateHandler)(&initial));
-	rtc.ht = '2';
-	rtc.h1 = '2';
-	rtc.mt = '0';
-	rtc.m1 = '0';
-	rtc.seconds = 0;
+	rtc.time.ht = '2';
+	rtc.time.h1 = '2';
+	rtc.time.mt = '0';
+	rtc.time.m1 = '0';
+	rtc.time.seconds = 0;
 }
 
 
@@ -43,7 +44,7 @@ static QState counting(struct RTC *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		lcd_showdigits(&(me->ht));
+		QActive_post((QActive*)(&ui), TIME_SIGNAL, (QParam)(&(me->time)));
 		QActive_armX((QActive*)me, 0, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
@@ -57,35 +58,28 @@ static QState counting(struct RTC *me)
 
 static void inc_time(struct RTC *me)
 {
-	me->seconds ++;
-	if (me->seconds & 0x01) {
-		lcd_colon(1);
-	} else {
-		lcd_colon(0);
-	}
+	me->time.seconds += 2;
 
-	if (me->seconds < 30U) {
-		return;
-	}
-
-	me->seconds = 0;
-	me->m1 ++;
-	if (me->m1 > '9') {
-		me->m1 = '0';
-		me->mt ++;
-		if (me->mt > '5') {
-			me->mt = '0';
-			if (me->h1 == '3' && me->ht == '2') {
-				me->h1 = '0';
-				me->ht = '0';
-			} else {
-				me->h1 ++;
-				if (me->h1 > '9') {
-					me->h1 = '0';
-					me->ht ++;
+	if (me->time.seconds >= 60U) {
+		me->time.seconds = 0;
+		me->time.m1 ++;
+		if (me->time.m1 > '9') {
+			me->time.m1 = '0';
+			me->time.mt ++;
+			if (me->time.mt > '5') {
+				me->time.mt = '0';
+				if (me->time.h1 == '3' && me->time.ht == '2') {
+					me->time.h1 = '0';
+					me->time.ht = '0';
+				} else {
+					me->time.h1 ++;
+					if (me->time.h1 > '9') {
+						me->time.h1 = '0';
+						me->time.ht ++;
+					}
 				}
 			}
 		}
 	}
-	lcd_showdigits(&(me->ht));
+	QActive_post((QActive*)(&ui), TIME_SIGNAL, (QParam)(&(me->time)));
 }

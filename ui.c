@@ -3,6 +3,7 @@
 #include "bsp.h"
 #include "serial.h"
 #include "lcd.h"
+#include "time.h"
 #include <string.h>
 /* Contains declarations of temperature sensing ranges: MINTI, MAXTI,
    NCONVERSIONS. */
@@ -58,6 +59,8 @@ static QState uiInitial(struct UI *me)
 
 static QState uiTop(struct UI *me)
 {
+	const struct Time*timedigits;
+
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		lcd_clear();
@@ -68,6 +71,19 @@ static QState uiTop(struct UI *me)
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
 		SERIALSTR("uiTop: TS\r\n");
+		return Q_HANDLED();
+	case TIME_SIGNAL:
+		timedigits = (const struct Time*)(Q_PAR(me));
+		Q_ASSERT( timedigits->ht >= '0' && timedigits->ht <= '9' );
+		Q_ASSERT( timedigits->h1 >= '0' && timedigits->h1 <= '9' );
+		Q_ASSERT( timedigits->mt >= '0' && timedigits->mt <= '9' );
+		Q_ASSERT( timedigits->m1 >= '0' && timedigits->m1 <= '9' );
+		lcd_showdigits((const char *)timedigits);
+		if (timedigits->seconds & 0x02) {
+			lcd_colon(1);
+		} else {
+			lcd_colon(0);
+		}
 		return Q_HANDLED();
 	}
 	return Q_SUPER(QHsm_top);
