@@ -1,5 +1,6 @@
 #include "bsp.h"
 #include "hc.h"
+#include "ui.h"
 #include "buttons.h"
 #include "qpn_port.h"
 #include "morse.h"
@@ -20,18 +21,6 @@ Q_DEFINE_THIS_MODULE("b");
 
 
 static int16_t convert_adc_to_temperature(uint16_t adc);
-
-
-/**
- * The number of ticks we do in slow timer mode between returns to QP-nano.
- */
-#define SLOW_TIMER_TICKS 4
-
-
-/**
- * Count slow timer ticks, so we know when to return to QP-nano.
- */
-static volatile uint8_t slow_timer_ticks = 0;
 
 
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
@@ -185,21 +174,21 @@ isr_TIMERA0(void)
 	SERIALSTR("{A}");
 	BSP_led_on();
 	QF_tickXISR(1);
-	if (BSP_cal_switch()) {
+	if (BSP_button_1()) {
 		SERIALSTR("\\1");
 		QActive_postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
 	} else {
 		SERIALSTR("/1");
 		QActive_postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
 	}
-	if (BSP_down_switch()) {
+	if (BSP_button_3()) {
 		SERIALSTR("\\2");
 		QActive_postISR((QActive*)(&buttons), B_2_DOWN_SIGNAL, 0);
 	} else {
 		SERIALSTR("/2");
 		QActive_postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
 	}
-	if (BSP_up_switch()) {
+	if (BSP_button_2()) {
 		SERIALSTR("\\3");
 		QActive_postISR((QActive*)(&buttons), B_3_DOWN_SIGNAL, 0);
 	} else {
@@ -218,12 +207,12 @@ isr_BASICTIMER(void)
 
 	P2OUT |= BIT0;
 	BSP_led_on();
-	if (BSP_cal_switch()) {
+	if (BSP_button_1()) {
 		SERIALSTR("\\1");
 		/* We send the button press signal here (rather than relying on
 		   buttons.c to do it) because it's only when hc is told about
 		   the button being down that it starts the fast timer. */
-		QActive_postISR((QActive*)(&hc), BUTTON_1_PRESS_SIGNAL, 0);
+		QActive_postISR((QActive*)(&ui), BUTTON_1_PRESS_SIGNAL, 0);
 		QActive_postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
 	}
 	/* We have to call QF_tick() after the button events because some parts
@@ -270,19 +259,19 @@ void BSP_do_reset(void)
 }
 
 
-uint8_t BSP_cal_switch(void)
+uint8_t BSP_button_1(void)
 {
 	return ! (P3IN & BIT4);
 }
 
 
-uint8_t BSP_up_switch(void)
+uint8_t BSP_button_2(void)
 {
 	return ! (P3IN & BIT5);
 }
 
 
-uint8_t BSP_down_switch(void)
+uint8_t BSP_button_3(void)
 {
 	return ! (P3IN & BIT6);
 }
@@ -379,7 +368,7 @@ isr_ADC12(void)
 	serial_send_char(':');
 	serial_send_int(temperature);
 	SERIALSTR("\r\n");
-	QActive_postISR((QActive*)(&hc), TEMPERATURE_SIGNAL, temperature);
+	QActive_postISR((QActive*)(&ui), TEMPERATURE_SIGNAL, temperature);
 	ADC12IFG = 0;
 	ADC12IE = 0;
 

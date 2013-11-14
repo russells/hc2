@@ -1,5 +1,6 @@
 #include "buttons.h"
 #include "hc.h"
+#include "ui.h"
 
 
 static QState buttons_initial(struct Buttons *me);
@@ -128,7 +129,7 @@ static QState button_down(struct Button *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		QActive_post((QActive*)(&hc), me->press_signal, 0);
+		QActive_post((QActive*)(&ui), me->press_signal, 0);
 		return Q_HANDLED();
 	case BUTTON_PRESSED_SIGNAL:
 		me->counter ++;
@@ -138,7 +139,7 @@ static QState button_down(struct Button *me)
 			return Q_HANDLED();
 		}
 	case Q_EXIT_SIG:
-		QActive_post((QActive*)(&hc), me->release_signal, 0);
+		QActive_post((QActive*)(&ui), me->release_signal, 0);
 		return Q_HANDLED();
 	}
 	return Q_SUPER(button_maybe_down);
@@ -149,12 +150,12 @@ static QState button_long(struct Button *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		QActive_post((QActive*)(&hc), me->long_press_signal, 0);
+		QActive_post((QActive*)(&ui), me->long_press_signal, 0);
 		return Q_HANDLED();
 	case BUTTON_PRESSED_SIGNAL:
 		me->counter ++;
 		if (me->counter == 47) {
-			QActive_post((QActive*)(&hc), me->repeat_signal, 0);
+			QActive_post((QActive*)(&ui), me->repeat_signal, 0);
 			me->counter = 32;
 		}
 		return Q_HANDLED();

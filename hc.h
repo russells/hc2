@@ -4,29 +4,15 @@
 #include "qpn_port.h"
 #include <limits.h>
 
-struct Hc {
-	QActive super;
-	/** Temperature as returned by the BSP.  It is scaled by a factor of
-	    two, so we can show temperature to half a degree. */
-	int16_t ti;
-	int16_t calibration;
-
-	uint8_t scrollindex;
-	const char *scrollstring;
-	char scrolltext[8];
-};
-
 
 /** The minimum value for calibration. */
 #define MIN_CAL -9
+
 /** The maximum value for calibration. */
 #define MAX_CAL 9
 
-
+/** A value that specifies an invalid temperature. */
 #define INVALIDTI INT_MIN
-
-
-extern struct Hc hc;
 
 
 enum HcSignals {

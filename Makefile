@@ -12,6 +12,7 @@ SRCS = $(PROG).c bsp-449STK2.c \
 	lcd-449STK2.c \
 	morse.c \
 	rtc.c \
+	ui.c \
 	qpn/source/qepn.c qpn/source/qfn.c \
 
 ifeq ($(SERIAL),yes)
@@ -40,6 +41,9 @@ default: $(ELFPROGRAM)
 $(ELFPROGRAM): $(OBJS)
 	$(LD) $(LDFLAGS) -o $(ELFPROGRAM) $(OBJS)
 
+# We require these two manual dependencies so that the DEP targets work
+# properly.
+ui.c: bsp-MCP9701A-temperature-scale.h
 bsp-449STK2.c: bsp-MCP9701A-temperature-scale.inc
 
 bsp-MCP9701A-temperature-scale.inc bsp-MCP9701A-temperature-scale.h: bsp-MCP9701A-temperature-scale-creator.py

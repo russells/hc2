@@ -7,10 +7,10 @@
 
 struct Button {
 	QHsm super;
-	int press_signal;
-	int long_press_signal;
-	int repeat_signal;
-	int release_signal;
+	QSignal press_signal;
+	QSignal long_press_signal;
+	QSignal repeat_signal;
+	QSignal release_signal;
 	uint8_t counter;
 };
 
