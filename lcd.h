@@ -10,5 +10,6 @@ void lcd_showchar(char ch, uint8_t pos);
 void lcd_showstring(const char *s);
 void lcd_showdigits(const char *ds);
 void lcd_colon(uint8_t onoff);
+void lcd_timeouts(uint8_t timeouts);
 
 #endif

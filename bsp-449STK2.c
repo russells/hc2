@@ -23,6 +23,10 @@ Q_DEFINE_THIS_MODULE("b");
 static int16_t convert_adc_to_temperature(uint16_t adc);
 
 
+static volatile uint8_t fast_timer_1 = 0;
+static volatile uint8_t fast_timer_2 = 0;
+
+
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
 {
 	BSP_stop_everything();
@@ -64,23 +68,25 @@ static void timer_a_init(void)
 }
 
 
-void BSP_fast_timer(uint8_t onoff)
+void BSP_fast_timers(uint8_t t1onoff, uint8_t t2onoff)
 {
-	if (onoff) {
-		SERIALSTR("+");
-		/* Start TIMER_A */
-		TAR = 0;
-		TACTL |= (MC0);	/* Up mode */
+	if (t1onoff || t2onoff) {
+		if (! (TACTL & MC0)) {
+			SERIALSTR("+");
+			/* Start TIMER_A */
+			TAR = 0;
+			SB(TACTL, MC0); /* Up mode */
+		}
 	} else {
 		SERIALSTR("-");
 		CB(TACTL, MC0);
 
 		/* We are turning off the fast timer interrupt that scans the
 		   buttons, so tell the buttons state machine about that. */
-		postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
-		postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
-		postISR((QActive*)(&buttons), B_3_UP_SIGNAL, 0);
+		postISR((QActive*)(&buttons), BUTTONS_SIGNAL, 0);
 	}
+	fast_timer_1 = t1onoff;
+	fast_timer_2 = t2onoff;
 }
 
 
@@ -178,29 +184,35 @@ static void
 __attribute__((__interrupt__(TIMERA0_VECTOR)))
 isr_TIMERA0(void)
 {
-	SERIALSTR("{A}");
+	uint16_t buttonmask = 0;
+	static volatile uint8_t counter = 0;
+
+	//serial_send_char(',');
+
+	P2OUT |= BIT0;
+
 	BSP_led_on();
-	QF_tickXISR(1);
-	if (BSP_button_1()) {
-		SERIALSTR("\\1");
-		postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
-	} else {
-		SERIALSTR("/1");
-		postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
-	}
-	if (BSP_button_3()) {
-		SERIALSTR("\\2");
-		postISR((QActive*)(&buttons), B_2_DOWN_SIGNAL, 0);
-	} else {
-		SERIALSTR("/2");
-		postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
-	}
-	if (BSP_button_2()) {
-		SERIALSTR("\\3");
-		postISR((QActive*)(&buttons), B_3_DOWN_SIGNAL, 0);
-	} else {
-		SERIALSTR("/3");
-		postISR((QActive*)(&buttons), B_3_UP_SIGNAL, 0);
+
+	/* The buttons and QP-nano can't keep up with the rate we set with the
+	   timer (18ms), so halve it. */
+	counter ++;
+	if (counter & 0x1) {
+		if (fast_timer_1) {
+			QF_tickXISR(1);
+		}
+		if (fast_timer_2) {
+			QF_tickXISR(2);
+		}
+		if (BSP_button_1()) {
+			buttonmask |= 1;
+		}
+		if (BSP_button_2()) {
+			buttonmask |= 2;
+		}
+		if (BSP_button_3()) {
+			buttonmask |= 4;
+		}
+		postISR((QActive*)(&buttons), BUTTONS_SIGNAL, (QParam)buttonmask);
 	}
 	EXIT_LPM();
 }
@@ -214,13 +226,15 @@ isr_BASICTIMER(void)
 
 	P2OUT |= BIT0;
 	BSP_led_on();
-	if (BSP_button_1()) {
+	/* Only check button 1 if the fast timers are not on.  If they are on,
+	   the buttons are checked inside that ISR. */
+	if ( (! (fast_timer_1 || fast_timer_2)) &&  BSP_button_1()) {
 		SERIALSTR("\\1");
 		/* We send the button press signal here (rather than relying on
 		   buttons.c to do it) because it's only when hc is told about
 		   the button being down that it starts the fast timer. */
 		postISR((QActive*)(&ui), BUTTON_1_PRESS_SIGNAL, 0);
-		postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
+		postISR((QActive*)(&buttons), BUTTONS_WAIT_SIGNAL, 0);
 	}
 	/* We have to call QF_tick() after the button events because some parts
 	   of hc (hcTemperature() etc) ignore button events. */
@@ -358,7 +372,6 @@ isr_ADC12(void)
 	P2OUT |= BIT0;
 
 	adc = ADC12MEM10;
-	SERIALSTR("A: ");
 	serial_send_int(adc);
 	/* The ADC value must move by at least four LSB before we regard it as
 	   having changed.  This reduces jitter in the temperature readings. */
@@ -368,13 +381,8 @@ isr_ADC12(void)
 		previous_adc = adc;
 	} else {
 		temperature = previous_temperature;
-		SERIALSTR("(");
 		serial_send_int(previous_adc);
-		SERIALSTR(")");
 	}
-	serial_send_char(':');
-	serial_send_int(temperature);
-	SERIALSTR("\r\n");
 	postISR((QActive*)(&ui), TEMPERATURE_SIGNAL, temperature);
 	ADC12IFG = 0;
 	ADC12IE = 0;
@@ -546,7 +554,7 @@ void BSP_save_calibration(int16_t cal)
 	s[i++] = '\0';
 
 	/* Do all the flash writing with interrupts off. */
-	_BIC_SR(GIE);
+	__disable_interrupt();
 
 	/* Set up the flash write mechanism. */
 	FCTL2 = FWKEY |
@@ -581,5 +589,5 @@ void BSP_save_calibration(int16_t cal)
 	SERIALSTR("\r\n");
 
 	/* Interrupts back on. */
-	_BIC_SR(GIE);
+	__enable_interrupt();
 }

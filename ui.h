@@ -11,6 +11,8 @@ struct UI {
 	int16_t ti;
 	int16_t calibration;
 
+	uint8_t timeoutcounter;
+
 	uint8_t scrollindex;
 	const char *scrollstring;
 	char scrolltext[8];

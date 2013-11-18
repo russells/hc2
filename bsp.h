@@ -8,7 +8,7 @@
 
 void BSP_init(void);
 
-void BSP_fast_timer(uint8_t onoff);
+void BSP_fast_timers(uint8_t t1onoff, uint8_t t2onoff);
 
 #ifdef LED
 void BSP_led_on(void);

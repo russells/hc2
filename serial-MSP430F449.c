@@ -5,12 +5,12 @@
 Q_DEFINE_THIS_FILE;
 
 
-#define SEND_BUFFER_SIZE 120
+#define SEND_BUFFER_SIZE 920
 static char sendbuffer[SEND_BUFFER_SIZE];
-static uint8_t sendhead;
-static uint8_t sendtail;
+static volatile uint16_t sendhead;
+static volatile uint16_t sendtail;
 
-static uint8_t sendbuffer_space(void)
+static uint16_t sendbuffer_space(void)
 {
 	if (sendhead == sendtail) {
 		return SEND_BUFFER_SIZE - 1;

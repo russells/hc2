@@ -32,6 +32,12 @@ enum HcSignals {
 	TIME_SIGNAL,
 
 	/**
+	 * Sent from the UI to itself to tell that the user has done some
+	 * action, and not to do the automatic timeout just yet.
+	 */
+	UI_ACTION_SIGNAL,
+
+	/**
 	 * Send from Buttons to its constituent Button HSMs to tell them that
 	 * their button is pressed.
 	 */
@@ -43,19 +49,17 @@ enum HcSignals {
 	 */
 	BUTTON_RELEASED_SIGNAL,
 
-	/** Button 1 is held down. */
-	B_1_DOWN_SIGNAL,
-	/** Button 2 is held down. */
-	B_2_DOWN_SIGNAL,
-	/** Button 3 is held down. */
-	B_3_DOWN_SIGNAL,
+	/**
+	 * Sent from the ISR to Buttons with a bitmask of buttons.
+	 */
+	BUTTONS_SIGNAL,
 
-	/** Button 1 is not held down. */
-	B_1_UP_SIGNAL,
-	/** Button 2 is not held down. */
-	B_2_UP_SIGNAL,
-	/** Button 3 is not held down. */
-	B_3_UP_SIGNAL,
+	/**
+	 * Sent to Buttons to tell it that we have bypassed the normal button
+	 * detection, and to wait for all buttons to be up before generating
+	 * more button events.
+	 */
+	BUTTONS_WAIT_SIGNAL,
 
 	BUTTON_1_PRESS_SIGNAL,
 	BUTTON_1_LONG_PRESS_SIGNAL,
@@ -97,7 +101,6 @@ enum HcSignals {
 		Q_ASSERT( (end - ao->nUsed) > 0 );		       \
 		QActive_postISR((QActive*)(me_), sig_, par_);	       \
 	} while (0);
-
 
 
 #endif

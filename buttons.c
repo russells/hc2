@@ -1,6 +1,7 @@
 #include "buttons.h"
 #include "hc.h"
 #include "ui.h"
+#include "serial.h"
 
 
 Q_DEFINE_THIS_MODULE("btn");
@@ -8,6 +9,7 @@ Q_DEFINE_THIS_MODULE("btn");
 
 static QState buttons_initial(struct Buttons *me);
 static QState buttons_state(struct Buttons *me);
+static QState buttons_waiting(struct Buttons *me);
 
 
 static QState button_initial(struct Button *me);
@@ -65,27 +67,51 @@ static QState buttons_initial(struct Buttons *me)
 static QState buttons_state(struct Buttons *me)
 {
 	switch (Q_SIG(me)) {
-	case B_1_DOWN_SIGNAL:
-		DS(button1, BUTTON_PRESSED_SIGNAL);
-		return Q_HANDLED();
-	case B_2_DOWN_SIGNAL:
-		DS(button2, BUTTON_PRESSED_SIGNAL);
-		return Q_HANDLED();
-	case B_3_DOWN_SIGNAL:
-		DS(button3, BUTTON_PRESSED_SIGNAL);
-		return Q_HANDLED();
-
-	case B_1_UP_SIGNAL:
-		DS(button1, BUTTON_RELEASED_SIGNAL);
-		return Q_HANDLED();
-	case B_2_UP_SIGNAL:
-		DS(button2, BUTTON_RELEASED_SIGNAL);
-		return Q_HANDLED();
-	case B_3_UP_SIGNAL:
-		DS(button3, BUTTON_RELEASED_SIGNAL);
+	case BUTTONS_WAIT_SIGNAL:
+		return Q_TRAN(buttons_waiting);
+	case BUTTONS_SIGNAL:
+		if ((uint16_t)(Q_PAR(me)) & 0x1) {
+			DS(button1, BUTTON_PRESSED_SIGNAL);
+		} else {
+			DS(button1, BUTTON_RELEASED_SIGNAL);
+		}
+		if ((uint16_t)(Q_PAR(me)) & 0x2) {
+			DS(button2, BUTTON_PRESSED_SIGNAL);
+		} else {
+			DS(button2, BUTTON_RELEASED_SIGNAL);
+		}
+		if ((uint16_t)(Q_PAR(me)) & 0x4) {
+			DS(button3, BUTTON_PRESSED_SIGNAL);
+		} else {
+			DS(button3, BUTTON_RELEASED_SIGNAL);
+		}
 		return Q_HANDLED();
 	}
 	return Q_SUPER(QHsm_top);
+}
+
+
+static QState buttons_waiting(struct Buttons *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		SERIALSTR("<+bw>");
+		DS(button1, BUTTON_RELEASED_SIGNAL);
+		DS(button2, BUTTON_RELEASED_SIGNAL);
+		DS(button3, BUTTON_RELEASED_SIGNAL);
+		return Q_HANDLED();
+	case BUTTONS_SIGNAL:
+		if ((uint16_t)(Q_PAR(me)) == 0) {
+			SERIALSTR("@");
+			return Q_TRAN(buttons_state);
+		} else {
+			return Q_HANDLED();
+		}
+	case Q_EXIT_SIG:
+		SERIALSTR("<-bw>");
+		return Q_HANDLED();
+	}
+	return Q_SUPER(buttons_state);
 }
 
 

@@ -31,7 +31,9 @@
 #define Q_NFSM
 #define Q_NMSM
 #define Q_TIMERSET
-#define QF_MAX_TICK_RATE 2
+/** We use one timer for the RTC (0.5Hz), one for button timing and temperature
+    measurement, and one for UI timeouts. */
+#define QF_MAX_TICK_RATE        3
 #define Q_PARAM_SIZE            2
 #define QF_TIMEEVT_CTR_SIZE     1
 

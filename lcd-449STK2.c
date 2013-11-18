@@ -18,15 +18,41 @@ static uint8_t lcdm_chars[20];
 /** If set, the colon in the time display is on. */
 static uint8_t colon = 0;
 
+/** The number of timeout bars to display. */
+static uint8_t timeouts = 0;
+
+
+static void display_timeouts(void)
+{
+	switch (timeouts) {
+	case 4:
+		LCDM1 |= 0xf0;
+		break;
+	case 3:
+		LCDM1 |= 0xe0;
+		LCDM1 &= ~(0x10);
+		break;
+	case 2:
+		LCDM1 |= 0xc0;
+		LCDM1 &= ~(0x30);
+		break;
+	case 1:
+		LCDM1 |= 0x80;
+		LCDM1 &= ~(0x70);
+		break;
+	case 0:
+		LCDM1 &= ~(0xf0);
+		break;
+	}
+}
+
 
 /** Turn on the colon if needed. */
 static void display_colon(void)
 {
 	if (colon) {
-		SERIALSTR("(-:-)");
 		LCDM4 |= 0x80;
 	} else {
-		SERIALSTR("(-.-)");
 		LCDM4 &= 0x7f;
 	}
 }
@@ -40,6 +66,7 @@ static void write_lcd_registers(void)
 		lcdm[i] = (lcdm_digits[i] | lcdm_chars[i]);
 	}
 	display_colon();
+	display_timeouts();
 }
 
 
@@ -361,4 +388,20 @@ void lcd_colon(uint8_t onoff)
 {
 	colon = onoff;
 	display_colon();
+}
+
+
+void lcd_timeouts(uint8_t t)
+{
+	/* For the development hardware (the Olimex MSP430-449STk2) we are
+	   using the available segments which are the "units" segments.
+
+	   @todo: when the real hardware is available, change to using the
+	   middle four progress bar segments.  This may not require any code
+	   changes, depending on the final segment connections.
+	*/
+
+	Q_ASSERT( t < 5 );
+	timeouts = t;
+	write_lcd_registers();
 }
