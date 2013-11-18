@@ -77,9 +77,9 @@ void BSP_fast_timer(uint8_t onoff)
 
 		/* We are turning off the fast timer interrupt that scans the
 		   buttons, so tell the buttons state machine about that. */
-		QActive_postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
-		QActive_postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
-		QActive_postISR((QActive*)(&buttons), B_3_UP_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_3_UP_SIGNAL, 0);
 	}
 }
 
@@ -176,24 +176,24 @@ isr_TIMERA0(void)
 	QF_tickXISR(1);
 	if (BSP_button_1()) {
 		SERIALSTR("\\1");
-		QActive_postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
 	} else {
 		SERIALSTR("/1");
-		QActive_postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_1_UP_SIGNAL, 0);
 	}
 	if (BSP_button_3()) {
 		SERIALSTR("\\2");
-		QActive_postISR((QActive*)(&buttons), B_2_DOWN_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_2_DOWN_SIGNAL, 0);
 	} else {
 		SERIALSTR("/2");
-		QActive_postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_2_UP_SIGNAL, 0);
 	}
 	if (BSP_button_2()) {
 		SERIALSTR("\\3");
-		QActive_postISR((QActive*)(&buttons), B_3_DOWN_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_3_DOWN_SIGNAL, 0);
 	} else {
 		SERIALSTR("/3");
-		QActive_postISR((QActive*)(&buttons), B_3_UP_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_3_UP_SIGNAL, 0);
 	}
 	EXIT_LPM();
 }
@@ -212,8 +212,8 @@ isr_BASICTIMER(void)
 		/* We send the button press signal here (rather than relying on
 		   buttons.c to do it) because it's only when hc is told about
 		   the button being down that it starts the fast timer. */
-		QActive_postISR((QActive*)(&ui), BUTTON_1_PRESS_SIGNAL, 0);
-		QActive_postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
+		postISR((QActive*)(&ui), BUTTON_1_PRESS_SIGNAL, 0);
+		postISR((QActive*)(&buttons), B_1_DOWN_SIGNAL, 0);
 	}
 	/* We have to call QF_tick() after the button events because some parts
 	   of hc (hcTemperature() etc) ignore button events. */
@@ -368,7 +368,7 @@ isr_ADC12(void)
 	serial_send_char(':');
 	serial_send_int(temperature);
 	SERIALSTR("\r\n");
-	QActive_postISR((QActive*)(&ui), TEMPERATURE_SIGNAL, temperature);
+	postISR((QActive*)(&ui), TEMPERATURE_SIGNAL, temperature);
 	ADC12IFG = 0;
 	ADC12IE = 0;
 

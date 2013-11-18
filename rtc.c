@@ -44,7 +44,7 @@ static QState counting(struct RTC *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		QActive_post((QActive*)(&ui), TIME_SIGNAL, (QParam)(&(me->time)));
+		post((QActive*)(&ui), TIME_SIGNAL, (QParam)(&(me->time)));
 		QActive_armX((QActive*)me, 0, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
@@ -81,5 +81,5 @@ static void inc_time(struct RTC *me)
 			}
 		}
 	}
-	QActive_post((QActive*)(&ui), TIME_SIGNAL, (QParam)(&(me->time)));
+	post((QActive*)(&ui), TIME_SIGNAL, (QParam)(&(me->time)));
 }

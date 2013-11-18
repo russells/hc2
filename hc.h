@@ -76,4 +76,28 @@ enum HcSignals {
 	MAX_SIG,
 };
 
+
+#define post(me_,sig_,par_)                                            \
+	do {							       \
+		const QActive *ao = (QActive*)me_;		       \
+		QActiveCB const Q_ROM *acb = &QF_active[ao->prio];     \
+		uint8_t end = Q_ROM_BYTE(acb->end);		       \
+		QF_INT_DISABLE();				       \
+		Q_ASSERT( (end - ao->nUsed) > 0);		       \
+		QF_INT_ENABLE();				       \
+		QActive_post((QActive*)(me_), sig_, par_);	       \
+	} while (0);
+
+
+#define postISR(me_,sig_,par_)                                         \
+	do {							       \
+		const QActive *ao = (QActive*)me_;		       \
+		QActiveCB const Q_ROM *acb = &QF_active[ao->prio];     \
+		uint8_t end = Q_ROM_BYTE(acb->end);		       \
+		Q_ASSERT( (end - ao->nUsed) > 0 );		       \
+		QActive_postISR((QActive*)(me_), sig_, par_);	       \
+	} while (0);
+
+
+
 #endif
