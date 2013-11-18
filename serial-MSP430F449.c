@@ -76,15 +76,16 @@ void serial_init(void)
 		| (SWRST);
 	U1TCTL =
 		(CKPL & 0)
-		| (0x30 & 0x10)	/* ACLK, 32768Hz */
+		| (SSEL1 | SSEL0) /* SMCLK, 1048576Hz */
 		| (URXSE)
 		| (TXWAKE & 0);
 	U1RCTL = 0; 		/* Nothing to set in U1RCTL */
 	/* See MSP430x4xx Family User’s Guide, slau056l.pdf, Table 17-2, page
 	   17-16, for baud rate calculations. */
+	/* 1048576 Hz clock, 115200 baud */
 	U1BR1 = 0;
-	U1BR0 = 0x03;
-	U1MCTL = 0x4a;
+	U1BR0 = 0x09;
+	U1MCTL = 0x08;
 	/* Get the buffer ready. */
 	sendhead = sendtail = 0;
 	/* Enable the transmitter only. */

@@ -13,7 +13,9 @@ Q_DEFINE_THIS_FILE;
 
 
 static QEvent rtcQueue[4];
-static QEvent buttonsQueue[8];
+/** The size of buttonsQueue[] is embarrassing, and reveals a flaw in the
+    current code.  It will go away completely in a later iteration. */
+static QEvent buttonsQueue[18];
 static QEvent uiQueue[8];
 
 QActiveCB const Q_ROM Q_ROM_VAR QF_active[] = {

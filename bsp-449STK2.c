@@ -149,7 +149,14 @@ void QF_onIdle(void)
 	//SERIALSTR(",");
 	BSP_led_off();
 	P2OUT &= ~(BIT0);
+#ifdef SERIAL
+	/* If we're running the serial port (for debugging) don't stop SMCLK.
+	   SMCLK keeps running while the CPU is running, and we don't shutdown
+	   the CPU. */
+	__enable_interrupt();
+#else
 	ENTER_LPM();
+#endif
 }
 
 
