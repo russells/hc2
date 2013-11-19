@@ -3,6 +3,7 @@
 #include "bsp.h"
 #include "serial.h"
 #include "lcd.h"
+#include "rtc.h"
 #include "time.h"
 #include <string.h>
 /* Contains declarations of temperature sensing ranges: MINTI, MAXTI,
@@ -23,11 +24,20 @@ static QState uiRun(struct UI *me);
 static QState uiPause(struct UI *me);
 static QState uiTemperature(struct UI *me);
 static QState uiGetTemperature(struct UI *me);
+
 static QState uiMenu(struct UI *me);
+
+static QState uiMenuMaybeSettime(struct UI *me);
+static QState uiMenuSettimeHours(struct UI *me);
+static QState uiMenuSettimeMinutes(struct UI *me);
+static QState uiMenuSettimeConfirmYes(struct UI *me);
+static QState uiMenuSettimeConfirmNo(struct UI *me);
+
 static QState uiMenuMaybeCalibrate(struct UI *me);
 static QState uiMenuCalibratePause(struct UI *me);
 static QState uiMenuCalibrateTemperature(struct UI *me);
 static QState uiMenuCalibrateGetTemperature(struct UI *me);
+
 static QState uiMenuMaybeExit(struct UI *me);
 
 static void show_temperature(struct UI *me);
@@ -141,7 +151,7 @@ static QState uiRun(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case BUTTON_1_PRESS_SIGNAL:
-		return Q_TRAN(uiMenuMaybeCalibrate);
+		return Q_TRAN(uiMenuMaybeSettime);
 	}
 	return Q_SUPER(uiTop);
 }
@@ -458,6 +468,34 @@ static QState uiMenu(struct UI *me)
 }
 
 
+// ----- UI Menu Maybe stuff -----
+
+
+/* The response of the uiMenuMaybe*() functions to button presses determines
+   the order of the menu items.  @todo Would this be better in a table, with a
+   history pattern? */
+
+
+static QState uiMenuMaybeSettime(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		lcd_showstring("SETTIME");
+		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuSettimeHours);
+	case BUTTON_2_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuMaybeCalibrate);
+	case BUTTON_3_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuMaybeExit);
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
 static QState uiMenuMaybeCalibrate(struct UI *me)
 {
 	switch (Q_SIG(me)) {
@@ -468,12 +506,246 @@ static QState uiMenuMaybeCalibrate(struct UI *me)
 		ACTION();
 		return Q_TRAN(uiMenuCalibrateTemperature);
 	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_3_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeExit);
+	case BUTTON_3_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuMaybeSettime);
 	}
 	return Q_SUPER(uiMenu);
 }
+
+
+static QState uiMenuMaybeExit(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		lcd_showstring("EXIT   ");
+		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiTemperature);
+	case BUTTON_2_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuMaybeSettime);
+	case BUTTON_3_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuMaybeCalibrate);
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
+// ----- UI Menu Set Time -----
+
+
+static void display_set_time(struct UI *me);
+static void inc_set_time_hours(struct UI *me);
+static void dec_set_time_hours(struct UI *me);
+static void inc_set_time_minutes(struct UI *me);
+static void dec_set_time_minutes(struct UI *me);
+static void display_set_time_confirm(struct UI *me, char yn);
+
+
+static QState uiMenuSettimeHours(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		me->settime_hm = 'H';
+		me->settime = *gettimep();
+		display_set_time(me);
+		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuSettimeMinutes);
+	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_2_LONG_PRESS_SIGNAL:
+	case BUTTON_2_REPEAT_SIGNAL:
+		ACTION();
+		inc_set_time_hours(me);
+		display_set_time(me);
+		return Q_HANDLED();
+	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_3_LONG_PRESS_SIGNAL:
+	case BUTTON_3_REPEAT_SIGNAL:
+		ACTION();
+		dec_set_time_hours(me);
+		display_set_time(me);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
+static QState uiMenuSettimeMinutes(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		me->settime_hm = 'M';
+		display_set_time(me);
+		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuSettimeConfirmYes);
+	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_2_LONG_PRESS_SIGNAL:
+	case BUTTON_2_REPEAT_SIGNAL:
+		ACTION();
+		inc_set_time_minutes(me);
+		display_set_time(me);
+		return Q_HANDLED();
+	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_3_LONG_PRESS_SIGNAL:
+	case BUTTON_3_REPEAT_SIGNAL:
+		ACTION();
+		dec_set_time_minutes(me);
+		display_set_time(me);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
+static QState uiMenuSettimeConfirmYes(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		display_set_time_confirm(me, 'Y');
+		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+		ACTION();
+		me->settime.seconds = 0;
+		*gettimep() = me->settime;
+		return Q_TRAN(uiMenuMaybeSettime);
+	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_3_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuSettimeConfirmNo);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
+static QState uiMenuSettimeConfirmNo(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		display_set_time_confirm(me, 'N');
+		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuMaybeSettime);
+	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_3_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuSettimeConfirmYes);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
+static void display_set_time(struct UI *me)
+{
+	char disp[8];
+
+	disp[0] = me->settime_hm;
+	disp[1] = disp[2] = ' ';
+	disp[3] = me->settime.ht;
+	disp[4] = me->settime.h1;
+	disp[5] = me->settime.mt;
+	disp[6] = me->settime.m1;
+	disp[7] = '\0';
+	lcd_showstring(disp);
+}
+
+
+static void inc_set_time_hours(struct UI *me)
+{
+	struct Time *time;
+
+	time = &me->settime;
+	if (time->ht == '2' && time->h1 == '3') {
+		time->ht = '0';
+		time->h1 = '0';
+	} else if (time->h1 == '9') {
+		time->h1 = '0';
+		time->ht ++;
+	} else {
+		time->h1 ++;
+	}
+}
+
+
+static void dec_set_time_hours(struct UI *me)
+{
+	struct Time *time;
+
+	time = &me->settime;
+	if (time->ht == '0' && time->h1 == '0') {
+		time->ht = '2';
+		time->h1 = '3';
+	} else if (time->h1 == '0') {
+		time->h1 = '9';
+		time->ht --;
+	} else {
+		time->h1 --;
+	}
+}
+
+
+static void inc_set_time_minutes(struct UI *me)
+{
+	struct Time *time;
+
+	time = &me->settime;
+	if (time->mt == '5' && time->m1 == '9') {
+		time->mt = '0';
+		time->m1 = '0';
+	} else if (time->m1 == '9') {
+		time->m1 = '0';
+		time->mt ++;
+	} else {
+		time->m1 ++;
+	}
+}
+
+
+static void dec_set_time_minutes(struct UI *me)
+{
+	struct Time *time;
+
+	time = &me->settime;
+	if (time->mt == '0' && time->m1 == '0') {
+		time->mt = '5';
+		time->m1 = '9';
+	} else if (time->m1 == '0') {
+		time->m1 = '9';
+		time->mt --;
+	} else {
+		time->m1 --;
+	}
+}
+
+
+static void display_set_time_confirm(struct UI *me, char yn)
+{
+	char disp[8];
+
+	disp[0] = me->settime.ht;
+	disp[1] = me->settime.h1;
+	disp[2] = me->settime.mt;
+	disp[3] = me->settime.m1;
+	disp[4] = ' ';
+	disp[5] = ' ';
+	disp[6] = yn;
+	disp[7] = '\0';
+	lcd_showstring(disp);
+}
+
+
+// ----- UI Menu Calibrate -----
 
 
 static QState uiMenuCalibrate(struct UI *me)
@@ -561,22 +833,4 @@ static QState uiMenuCalibrateGetTemperature(struct UI *me)
 		return Q_TRAN(uiMenuCalibratePause);
 	}
 	return Q_SUPER(uiMenuCalibrate);
-}
-
-
-static QState uiMenuMaybeExit(struct UI *me)
-{
-	switch (Q_SIG(me)) {
-	case Q_ENTRY_SIG:
-		lcd_showstring("EXIT   ");
-		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
-		ACTION();
-		return Q_TRAN(uiTemperature);
-	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_3_PRESS_SIGNAL:
-		ACTION();
-		return Q_TRAN(uiMenuMaybeCalibrate);
-	}
-	return Q_SUPER(uiMenu);
 }

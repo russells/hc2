@@ -3,6 +3,7 @@
 
 #include "qpn_port.h"
 #include "hc.h"
+#include "time.h"
 
 struct UI {
 	QActive super;
@@ -16,6 +17,17 @@ struct UI {
 	uint8_t scrollindex;
 	const char *scrollstring;
 	char scrolltext[8];
+
+	/**
+	 * The time that the user is setting.  This gets saved back to the RTC
+	 * depending on what the user selects at the end of the process.
+	 */
+	struct Time settime;
+
+	/**
+	 * Set to 'H' or 'M' when the user is setting hours or minutes.
+	 */
+	char settime_hm;
 };
 
 
