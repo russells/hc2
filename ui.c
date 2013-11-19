@@ -11,6 +11,14 @@
 #include "bsp-temperature-scale.h"
 
 
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+
+
 Q_DEFINE_THIS_MODULE("u");
 
 
@@ -29,7 +37,9 @@ static QState uiMenu(struct UI *me);
 
 static QState uiMenuMaybeSettime(struct UI *me);
 static QState uiMenuSettimeHours(struct UI *me);
+static QState uiMenuSettimeHoursFlash(struct UI *me);
 static QState uiMenuSettimeMinutes(struct UI *me);
+static QState uiMenuSettimeMinutesFlash(struct UI *me);
 static QState uiMenuSettimeConfirmYes(struct UI *me);
 static QState uiMenuSettimeConfirmNo(struct UI *me);
 
@@ -449,13 +459,13 @@ static QState uiMenu(struct UI *me)
 		SERIALSTR("U");
 		me->timeoutcounter = 4;
 		lcd_timeouts(me->timeoutcounter);
-		QActive_armX((QActive*)(me), 2, 55);
+		QActive_armX((QActive*)(me), 2, 50);
 		return Q_HANDLED();
 	case Q_TIMEOUT2_SIG:
 		me->timeoutcounter --;
 		lcd_timeouts(me->timeoutcounter);
 		if (me->timeoutcounter) {
-			QActive_armX((QActive*)(me), 2, 55);
+			QActive_armX((QActive*)(me), 2, 50);
 			return Q_HANDLED();
 		} else {
 			return Q_TRAN(uiTemperature);
@@ -539,7 +549,8 @@ static QState uiMenuMaybeExit(struct UI *me)
 // ----- UI Menu Set Time -----
 
 
-static void display_set_time(struct UI *me);
+static void display_set_time(struct UI *me,
+			     uint8_t show_hours, uint8_t show_minutes);
 static void inc_set_time_hours(struct UI *me);
 static void dec_set_time_hours(struct UI *me);
 static void inc_set_time_minutes(struct UI *me);
@@ -553,8 +564,11 @@ static QState uiMenuSettimeHours(struct UI *me)
 	case Q_ENTRY_SIG:
 		me->settime_hm = 'H';
 		me->settime = *gettimep();
-		display_set_time(me);
+		display_set_time(me, TRUE, TRUE);
+		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+		return Q_TRAN(uiMenuSettimeHoursFlash);
 	case BUTTON_1_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuSettimeMinutes);
@@ -563,17 +577,46 @@ static QState uiMenuSettimeHours(struct UI *me)
 	case BUTTON_2_REPEAT_SIGNAL:
 		ACTION();
 		inc_set_time_hours(me);
-		display_set_time(me);
+		display_set_time(me, TRUE, TRUE);
+		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
 	case BUTTON_3_PRESS_SIGNAL:
 	case BUTTON_3_LONG_PRESS_SIGNAL:
 	case BUTTON_3_REPEAT_SIGNAL:
 		ACTION();
 		dec_set_time_hours(me);
-		display_set_time(me);
+		display_set_time(me, TRUE, TRUE);
+		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
 	}
 	return Q_SUPER(uiMenu);
+}
+
+
+static QState uiMenuSettimeHoursFlash(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		display_set_time(me, FALSE, TRUE);
+		QActive_armX((QActive*)me, 1, 8);
+		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+		display_set_time(me, TRUE, TRUE);
+		return Q_TRAN(uiMenuSettimeHours);
+	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_2_LONG_PRESS_SIGNAL:
+	case BUTTON_2_REPEAT_SIGNAL:
+	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_3_LONG_PRESS_SIGNAL:
+	case BUTTON_3_REPEAT_SIGNAL:
+		display_set_time(me, TRUE, TRUE);
+		/* React to the event, but don't handle it. */
+		break;
+	case Q_EXIT_SIG:
+		QActive_armX((QActive*)me, 1, 17);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenuSettimeHours);
 }
 
 
@@ -582,8 +625,11 @@ static QState uiMenuSettimeMinutes(struct UI *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		me->settime_hm = 'M';
-		display_set_time(me);
+		display_set_time(me, TRUE, TRUE);
+		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+		return Q_TRAN(uiMenuSettimeMinutesFlash);
 	case BUTTON_1_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuSettimeConfirmYes);
@@ -592,17 +638,46 @@ static QState uiMenuSettimeMinutes(struct UI *me)
 	case BUTTON_2_REPEAT_SIGNAL:
 		ACTION();
 		inc_set_time_minutes(me);
-		display_set_time(me);
+		display_set_time(me, TRUE, TRUE);
+		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
 	case BUTTON_3_PRESS_SIGNAL:
 	case BUTTON_3_LONG_PRESS_SIGNAL:
 	case BUTTON_3_REPEAT_SIGNAL:
 		ACTION();
 		dec_set_time_minutes(me);
-		display_set_time(me);
+		display_set_time(me, TRUE, TRUE);
+		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
 	}
 	return Q_SUPER(uiMenu);
+}
+
+
+static QState uiMenuSettimeMinutesFlash(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		display_set_time(me, TRUE, FALSE);
+		QActive_armX((QActive*)me, 1, 8);
+		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+		display_set_time(me, TRUE, TRUE);
+		return Q_TRAN(uiMenuSettimeMinutes);
+	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_2_LONG_PRESS_SIGNAL:
+	case BUTTON_2_REPEAT_SIGNAL:
+	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_3_LONG_PRESS_SIGNAL:
+	case BUTTON_3_REPEAT_SIGNAL:
+		display_set_time(me, TRUE, TRUE);
+		/* React to the event, but don't handle it. */
+		break;
+	case Q_EXIT_SIG:
+		QActive_armX((QActive*)me, 1, 17);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenuSettimeMinutes);
 }
 
 
@@ -646,16 +721,25 @@ static QState uiMenuSettimeConfirmNo(struct UI *me)
 }
 
 
-static void display_set_time(struct UI *me)
+static void display_set_time(struct UI *me,
+			     uint8_t show_hours, uint8_t show_minutes)
 {
 	char disp[8];
 
 	disp[0] = me->settime_hm;
 	disp[1] = disp[2] = ' ';
-	disp[3] = me->settime.ht;
-	disp[4] = me->settime.h1;
-	disp[5] = me->settime.mt;
-	disp[6] = me->settime.m1;
+	if (show_hours) {
+		disp[3] = me->settime.ht;
+		disp[4] = me->settime.h1;
+	} else {
+		disp[3] = disp[4] = ' ';
+	}
+	if (show_minutes) {
+		disp[5] = me->settime.mt;
+		disp[6] = me->settime.m1;
+	} else {
+		disp[5] = disp[6] = ' ';
+	}
 	disp[7] = '\0';
 	lcd_showstring(disp);
 }
