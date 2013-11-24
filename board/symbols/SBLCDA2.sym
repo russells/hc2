@@ -533,14 +533,12 @@ refdes=U?
 T 4200 7500 9 10 1 0 0 6 1
 SBLCDA2
 T 700 7900 8 10 0 0 0 0 1
-graphical=0
-T 700 8200 8 10 0 0 0 0 1
 numslots=1
-T 700 8800 8 10 0 0 0 0 1
-device=SBLCDA2
 T 700 8500 8 10 0 0 0 0 1
+device=SBLCDA2
+T 700 8200 8 10 0 0 0 0 1
 description=Multi segment LCD
-T 700 9100 8 10 0 0 0 0 1
+T 700 8800 8 10 0 0 0 0 1
 footprint=SBLCDA2.fp
-T 700 9400 8 10 0 0 0 0 1
+T 700 9100 8 10 0 0 0 0 1
 author=Russell Steicke

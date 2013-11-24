@@ -39,13 +39,11 @@ T 100 2600 9 10 1 0 0 0 1
 MCP9700A
 T 200 3000 8 10 0 0 0 0 1
 footprint=TO92
-T 200 3300 8 10 0 0 0 0 1
-graphical=0
-T 200 3900 8 10 0 0 0 0 1
-description=MCP9700A Temperatur Sensor
-T 200 4200 8 10 0 0 0 0 1
-device=MCP9700A
 T 200 3600 8 10 0 0 0 0 1
+description=MCP9700A Temperature Sensor
+T 200 3900 8 10 0 0 0 0 1
+device=MCP9700A
+T 200 3300 8 10 0 0 0 0 1
 numslots=1
-T 200 4500 8 10 0 0 0 0 1
+T 200 4200 8 10 0 0 0 0 1
 author=Russell Steicke
