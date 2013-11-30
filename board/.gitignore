@@ -1,0 +1,19 @@
+PCB.*.backup
+*.pcb-
+hc.pcb.bak
+hc.cmd
+hc.net
+hc.new.pcb
+hc.*.gbr
+hc.*.cnc
+
+# Eagle format gerber files
+hc-gerber.*
+
+\#*.sch\#
+*.sch~
+*.sym~
+
+hc-board.cmd
+hc-board.net
+hc-board.pcb

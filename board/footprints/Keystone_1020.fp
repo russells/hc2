@@ -7,8 +7,8 @@
 
 # Pad [rX1 rY1 rX2 rY2 Thickness Clearance Mask "Name" "Number" SFlags]
 
-#        S  D                              N  V  MX MY TX  TY  D S   F
-Element ["" "Keystone 1020 SMT AAA Holder" "" "" 10 10 100 100 0 100 ""] (
+#        S  D                              N    V  MX MY TX       TY  D S   F
+Element ["" "Keystone 1020 SMT AAA Holder" "B?" "" 10 10 20000 -10000 0 100 ""] (
 
 Pad [  -2500 0   2500 0 20000 4000 12000 "1" "1" "square" ]
 Pad [ 214600 0 219600 0 20000 4000 12000 "2" "2" "square" ]
