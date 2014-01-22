@@ -14,6 +14,8 @@ hc-gerber.*
 *.sch~
 *.sym~
 
-hc-board.cmd
-hc-board.net
-hc-board.pcb
+# hc-board.cmd
+# hc-board.net
+# hc-board.pcb
+
+hc-board*.ps
