@@ -50,6 +50,9 @@ static QState uiMenuCalibratePause(struct UI *me);
 static QState uiMenuCalibrateTemperature(struct UI *me);
 static QState uiMenuCalibrateGetTemperature(struct UI *me);
 
+static QState uiMenuMaybeAdjusttime(struct UI *me);
+static QState uiMenuAdjusttime(struct UI *me);
+
 static QState uiMenuMaybeExit(struct UI *me);
 
 static void show_temperature(struct UI *me);
@@ -519,17 +522,37 @@ static QState uiMenuMaybeCalibrate(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		lcd_showstring("T CAL  ");
+		lcd_showstring("CALTEMP");
 		return Q_HANDLED();
 	case BUTTON_1_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuCalibrateTemperature);
 	case BUTTON_2_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeExit);
+		return Q_TRAN(uiMenuMaybeAdjusttime);
 	case BUTTON_3_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeSettime);
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
+static QState uiMenuMaybeAdjusttime(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		lcd_showstring("ADJTIME");
+		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuAdjusttime);
+	case BUTTON_2_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuMaybeExit);
+	case BUTTON_3_PRESS_SIGNAL:
+		ACTION();
+		return Q_TRAN(uiMenuMaybeCalibrate);
 	}
 	return Q_SUPER(uiMenu);
 }
@@ -549,7 +572,7 @@ static QState uiMenuMaybeExit(struct UI *me)
 		return Q_TRAN(uiMenuMaybeSettime);
 	case BUTTON_3_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeCalibrate);
+		return Q_TRAN(uiMenuMaybeAdjusttime);
 	}
 	return Q_SUPER(uiMenu);
 }
@@ -1113,4 +1136,51 @@ static QState uiMenuCalibrateGetTemperature(struct UI *me)
 		return Q_TRAN(uiMenuCalibratePause);
 	}
 	return Q_SUPER(uiMenuCalibrate);
+}
+
+
+static void display_adjusttime(struct UI *me)
+{
+	char s[8];
+	int slen;
+
+	Q_ASSERT( me->adjustment <= 9 );
+	Q_ASSERT( me->adjustment >= -9 );
+	slen = snprintf(s, 8, "%2dS/DAY", me->adjustment);
+	Q_ASSERT( slen == 7 );
+	Q_ASSERT( ! s[7] );
+	lcd_showstring(s);
+}
+
+static QState uiMenuAdjusttime(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		SERIALSTR("uiMAT\r\n");
+		me->adjustment = BSP_get_adjustment();
+		display_adjusttime(me);
+		return Q_HANDLED();
+	case BUTTON_1_PRESS_SIGNAL:
+		ACTION();
+		SERIALSTR("b1\r\n");
+		BSP_save_adjustment(me->adjustment);
+		return Q_TRAN(uiMenuMaybeAdjusttime);
+	case BUTTON_2_PRESS_SIGNAL:
+		ACTION();
+		if (me->adjustment < MAX_ADJ) {
+			SERIALSTR("up\r\n");
+			me->adjustment ++;
+			display_adjusttime(me);
+		}
+		return Q_HANDLED();
+	case BUTTON_3_PRESS_SIGNAL:
+		ACTION();
+		if (me->adjustment > MIN_ADJ) {
+			SERIALSTR("down\r\n");
+			me->adjustment --;
+			display_adjusttime(me);
+		}
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenu);
 }

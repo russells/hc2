@@ -5,11 +5,17 @@
 #include <limits.h>
 
 
-/** The minimum value for calibration. */
+/** The minimum value for temperature calibration. */
 #define MIN_CAL -9
 
-/** The maximum value for calibration. */
+/** The maximum value for temperature calibration. */
 #define MAX_CAL 9
+
+/** The minimum value for time adjustment. */
+#define MIN_ADJ -9
+
+/** The maximum value for time adjustment. */
+#define MAX_ADJ 9
 
 /** A value that specifies an invalid temperature. */
 #define INVALIDTI INT_MIN

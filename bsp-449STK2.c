@@ -8,6 +8,7 @@
 #include <msp430.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 
 Q_DEFINE_THIS_MODULE("b");
@@ -468,17 +469,78 @@ static int16_t convert_adc_to_temperature(uint16_t adc)
 
 /** The name that's saved in flash to indicate the calibration.  We look for
     this exact string as part of the checks for a valid calibration value. */
-static const char * const calibration_name = "CALIBRATION: ";
+static const char * const calibration_name = "CALIBRATION:";
 
 
 /** The length of the name we save in flash.  This must match the length of
     calibration_name (ignoring its terminating null byte.) */
-#define CN_LEN 13
+#define CALIBRATION_LEN 12
 
 
-/** Base address of flash area.  This is the start of the "information flash"
-    in the MSP430F449.  We use the first half (128 bytes) of this area. */
+/** Base address of the calibration name, which is the base address of flash
+    area.  This is the start of the "information flash" in the MSP430F449.  We
+    use the first half (128 bytes) of this area. */
 static char * const calibration_base = (char*) 0x1000;
+
+
+/** The name that's saved in flash to indicate the time adjustment. */
+static const char * const adjustment_name = "ADJUSTMENT:";
+
+#define ADJUSTMENT_LEN 11
+
+/** Base address of the adjustment name.  We allow for the length of the
+    calibration name, plus three bytes for the sign, number, and ';'. */
+static char * const adjustment_base = ((char *)(0x1000 + CALIBRATION_LEN + 3));
+
+
+static int16_t get_saved_num(const char * const base,
+			     const char *const name, uint8_t len)
+{
+	uint8_t negative;
+	uint16_t num;
+
+	SERIALSTR("get:");
+
+	serial_send(base);
+
+	if (strncmp(name, base, len)) {
+		SERIALSTR("<A>\r\n");
+		return 0;
+	}
+	if (base[len] == '-') {
+		negative = 1;
+	} else if (base[len] == '+') {
+		negative = 0;
+	} else {
+		SERIALSTR("<B>0x");
+		serial_send_hex_int(base[len]);
+		SERIALSTR("\r\n");
+		return 0;
+	}
+	if (base[len+1] < '0'
+	    || base[len+1] > '9') {
+		SERIALSTR("<C>\r\n");
+		return 0;
+	}
+	if (base[len+2] != ';') {
+		SERIALSTR("<D>\r\n");
+		return 0;
+	}
+	if (negative) {
+		num = '0' - base[len+1];
+	} else {
+		num = base[len+1] - '0';
+	}
+	SERIALSTR("\r\n");
+	return num;
+
+}
+
+
+static int16_t calibration = 0;
+
+
+static int16_t adjustment = 0;
 
 
 /**
@@ -486,53 +548,28 @@ static char * const calibration_base = (char*) 0x1000;
  */
 int16_t BSP_get_calibration(void)
 {
-	uint8_t negative;
-	uint16_t cal;
-
-	SERIALSTR("get:");
-
-	serial_send(calibration_base);
-
-	if (strncmp(calibration_name, calibration_base, CN_LEN)) {
-		SERIALSTR("<A>\r\n");
-		return 0;
-	}
-	if (calibration_base[CN_LEN] == '-') {
-		negative = 1;
-	} else if (calibration_base[CN_LEN] == '+') {
-		negative = 0;
-	} else {
-		SERIALSTR("<B>0x");
-		serial_send_hex_int(calibration_base[CN_LEN]);
-		SERIALSTR("\r\n");
-		return 0;
-	}
-	if (calibration_base[CN_LEN+1] < '0'
-	    || calibration_base[CN_LEN+1] > '9') {
-		SERIALSTR("<C>\r\n");
-		return 0;
-	}
-	if (calibration_base[CN_LEN+2]) {
-		SERIALSTR("<D>\r\n");
-		return 0;
-	}
-	if (negative) {
-		cal = '0' - calibration_base[CN_LEN+1];
-	} else {
-		cal = calibration_base[CN_LEN+1] - '0';
-	}
-	SERIALSTR("\r\n");
-	return cal;
+	calibration =  get_saved_num(calibration_base,
+				     calibration_name, CALIBRATION_LEN);
+	return calibration;
 }
 
 
 /**
- * Save the calibration to nvram.
+ * Get the adjustment from nvram.
  */
-void BSP_save_calibration(int16_t cal)
+int16_t BSP_get_adjustment(void)
+{
+	adjustment =  get_saved_num(adjustment_base,
+				    adjustment_name, ADJUSTMENT_LEN);
+	return adjustment;
+}
+
+
+static void save_nums(int16_t cal, int16_t adj)
 {
 	char *base;
-	char s[20];
+	static char s[50];
+	int slen;
 	char c;
 	uint8_t i;
 
@@ -540,18 +577,12 @@ void BSP_save_calibration(int16_t cal)
 
 	Q_ASSERT( cal >= -9 );
 	Q_ASSERT( cal <= 9 );
+	Q_ASSERT( adj >= -9 );
+	Q_ASSERT( adj <= 9 );
 
-
-	strcpy(s, calibration_name);
-	i = CN_LEN;
-	if (cal < 0) {
-		s[i++] = '-';
-		s[i++] = (((int8_t)cal) * -1) + '0';
-	} else {
-		s[i++] = '+';
-		s[i++] = ((int8_t)cal) + '0';
-	}
-	s[i++] = '\0';
+	slen = snprintf(s, 50, "%s%+d;%s%+d;",
+			calibration_name, cal, adjustment_name, adj);
+	Q_ASSERT( slen <= 49 );
 
 	/* Do all the flash writing with interrupts off. */
 	__disable_interrupt();
@@ -590,4 +621,18 @@ void BSP_save_calibration(int16_t cal)
 
 	/* Interrupts back on. */
 	__enable_interrupt();
+}
+
+
+void BSP_save_calibration(int16_t cal)
+{
+	calibration = cal;
+	save_nums(cal, adjustment);
+}
+
+
+void BSP_save_adjustment(int16_t adj)
+{
+	adjustment = adj;
+	save_nums(calibration, adj);
 }

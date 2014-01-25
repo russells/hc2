@@ -33,6 +33,8 @@ void BSP_get_temperature(void);
 
 int16_t BSP_get_calibration(void);
 void BSP_save_calibration(int16_t cal);
+int16_t BSP_get_adjustment(void);
+void BSP_save_adjustment(int16_t cal);
 
 #ifdef __MSP430__
 #define BSP_delay_ms(ms) __delay_cycles(1000L*ms)

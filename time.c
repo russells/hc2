@@ -1,5 +1,6 @@
 #include "time.h"
 #include "qpn_port.h"
+#include "bsp.h"
 #include "truefalse.h"
 
 Q_DEFINE_THIS_MODULE("t");
@@ -17,18 +18,34 @@ Q_DEFINE_THIS_MODULE("t");
  */
 
 
-void tick_time(struct Time *time)
+enum time_wrap tick_time(struct Time *time)
 {
+	enum time_wrap wrap = wrap_none;
+
 	time->seconds += 2;
 	if (time->seconds >= 60) {
 		time->seconds = 0;
-		if (inc_minute(time)
-		    && inc_hour(time)
-		    && inc_day(time)
-		    && inc_month(time)) {
-			inc_year(time);
+		if (inc_minute(time)) {
+			wrap = wrap_minute;
+			if (inc_hour(time)) {
+				wrap = wrap_hour;
+				if (inc_day(time)) {
+					wrap = wrap_day;
+					if (inc_month(time)) {
+						wrap = wrap_month;
+						inc_year(time);
+					}
+				}
+			}
 		}
 	}
+	if (wrap >= wrap_hour) {
+		/* We have wrapped the hours (at least - perhaps day and month
+		   as well), so apply the daily adjustment. */
+		int16_t adj = BSP_get_adjustment();
+		time->seconds -= (int8_t) adj;
+	}
+	return wrap;
 }
 
 
