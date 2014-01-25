@@ -52,6 +52,7 @@ static QState counting(struct RTC *me)
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
 		tick_time(&(me->time));
+		QActive_post(&(ui.super), TIME_SIGNAL, (QParam)(&(me->time)));
 		QActive_armX((QActive*)me, 0, 1);
 		return Q_HANDLED();
 	}

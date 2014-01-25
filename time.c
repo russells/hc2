@@ -19,13 +19,15 @@ Q_DEFINE_THIS_MODULE("t");
 
 void tick_time(struct Time *time)
 {
-	time->seconds ++;
-	if (time->seconds >= 60
-	    && inc_minute(time)
-	    && inc_hour(time)
-	    && inc_day(time)
-	    && inc_month(time)) {
-		inc_year(time);
+	time->seconds += 2;
+	if (time->seconds >= 60) {
+		time->seconds = 0;
+		if (inc_minute(time)
+		    && inc_hour(time)
+		    && inc_day(time)
+		    && inc_month(time)) {
+			inc_year(time);
+		}
 	}
 }
 
