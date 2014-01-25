@@ -12,6 +12,7 @@ SRCS = $(PROG).c bsp-449STK2.c \
 	lcd-449STK2.c \
 	morse.c \
 	rtc.c \
+	time.c \
 	ui.c \
 	qpn/source/qepn.c qpn/source/qfn.c \
 

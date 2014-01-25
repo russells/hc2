@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "serial.h"
 
-Q_DEFINE_THIS_FILE;
+Q_DEFINE_THIS_MODULE("l");
 
 
 /** A copy of the LCD register data specific to the four digit display at the

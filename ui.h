@@ -25,9 +25,9 @@ struct UI {
 	struct Time settime;
 
 	/**
-	 * Set to 'H' or 'M' when the user is setting hours or minutes.
+	 * Set to indicate the part of the time that the user is setting.
 	 */
-	char settime_hm;
+	char settime_YmdHM;
 };
 
 

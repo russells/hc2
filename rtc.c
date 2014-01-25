@@ -17,7 +17,6 @@ Q_DEFINE_THIS_MODULE("r");
 
 static QState initial(struct RTC *me);
 static QState counting(struct RTC *me);
-static void inc_time(struct RTC *me);
 
 
 struct RTC rtc;
@@ -26,6 +25,10 @@ struct RTC rtc;
 void rtc_ctor(void)
 {
 	QActive_ctor((QActive*)(&rtc), (QStateHandler)(&initial));
+	rtc.time.year = 2014;
+	rtc.time.month = 3;
+	rtc.time.day = 7;
+	/* TODO make this default to the time of the ceremony. */
 	rtc.time.ht = '2';
 	rtc.time.h1 = '2';
 	rtc.time.mt = '0';
@@ -48,38 +51,9 @@ static QState counting(struct RTC *me)
 		QActive_armX((QActive*)me, 0, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
-		inc_time(me);
+		tick_time(&(me->time));
 		QActive_armX((QActive*)me, 0, 1);
 		return Q_HANDLED();
 	}
 	return Q_SUPER(&QHsm_top);
-}
-
-
-static void inc_time(struct RTC *me)
-{
-	me->time.seconds += 2;
-
-	if (me->time.seconds >= 60U) {
-		me->time.seconds = 0;
-		me->time.m1 ++;
-		if (me->time.m1 > '9') {
-			me->time.m1 = '0';
-			me->time.mt ++;
-			if (me->time.mt > '5') {
-				me->time.mt = '0';
-				if (me->time.h1 == '3' && me->time.ht == '2') {
-					me->time.h1 = '0';
-					me->time.ht = '0';
-				} else {
-					me->time.h1 ++;
-					if (me->time.h1 > '9') {
-						me->time.h1 = '0';
-						me->time.ht ++;
-					}
-				}
-			}
-		}
-	}
-	post((QActive*)(&ui), TIME_SIGNAL, (QParam)(&(me->time)));
 }

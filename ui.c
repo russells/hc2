@@ -6,17 +6,12 @@
 #include "rtc.h"
 #include "time.h"
 #include <string.h>
+#include <stdio.h>		/* For snprintf() */
 /* Contains declarations of temperature sensing ranges: MINTI, MAXTI,
    NCONVERSIONS. */
 #include "bsp-temperature-scale.h"
 
-
-#ifndef TRUE
-#define TRUE 1
-#endif
-#ifndef FALSE
-#define FALSE 0
-#endif
+#include "truefalse.h"
 
 
 Q_DEFINE_THIS_MODULE("u");
@@ -36,6 +31,13 @@ static QState uiGetTemperature(struct UI *me);
 static QState uiMenu(struct UI *me);
 
 static QState uiMenuMaybeSettime(struct UI *me);
+static QState uiMenuSettimeYears(struct UI *me);
+static QState uiMenuSettimeYearsFlash(struct UI *me);
+static QState uiMenuSettimeMonths(struct UI *me);
+static QState uiMenuSettimeMonthsFlash(struct UI *me);
+static QState uiMenuSettimeDaysCheckmax(struct UI *me);
+static QState uiMenuSettimeDays(struct UI *me);
+static QState uiMenuSettimeDaysFlash(struct UI *me);
 static QState uiMenuSettimeHours(struct UI *me);
 static QState uiMenuSettimeHoursFlash(struct UI *me);
 static QState uiMenuSettimeMinutes(struct UI *me);
@@ -101,7 +103,13 @@ static QState uiTop(struct UI *me)
 		Q_ASSERT( time->h1 >= '0' && time->h1 <= '9' );
 		Q_ASSERT( time->mt >= '0' && time->mt <= '9' );
 		Q_ASSERT( time->m1 >= '0' && time->m1 <= '9' );
-		lcd_showdigits((const char *)time);
+		/** Hack alert!  This code rashly assumes that the ht, h1, mt,
+		    and m1 fields contain ASCII digits, and that they are
+		    consecutive in memory.  This code broke when I added the
+		    year, month, and day fields to struct Time, because it
+		    previously assumed that &time was the same as
+		    &(time->ht). */
+		lcd_showdigits((const char *)(&(time->ht)));
 		if (time->seconds & 0x02) {
 			lcd_colon(1);
 		} else {
@@ -494,7 +502,8 @@ static QState uiMenuMaybeSettime(struct UI *me)
 		return Q_HANDLED();
 	case BUTTON_1_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuSettimeHours);
+		me->settime = *gettimep();
+		return Q_TRAN(uiMenuSettimeYears);
 	case BUTTON_2_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeCalibrate);
@@ -549,21 +558,209 @@ static QState uiMenuMaybeExit(struct UI *me)
 // ----- UI Menu Set Time -----
 
 
+static void display_set_year(struct UI *me, uint8_t on);
+static void display_set_month(struct UI *me, uint8_t on);
+static void display_set_day(struct UI *me, uint8_t on);
 static void display_set_time(struct UI *me,
 			     uint8_t show_hours, uint8_t show_minutes);
-static void inc_set_time_hours(struct UI *me);
-static void dec_set_time_hours(struct UI *me);
-static void inc_set_time_minutes(struct UI *me);
-static void dec_set_time_minutes(struct UI *me);
 static void display_set_time_confirm(struct UI *me, char yn);
+
+static inline void display_set_hour(struct UI *me, uint8_t on) {
+	display_set_time(me, on, TRUE);
+}
+
+static inline void display_set_minute(struct UI *me, uint8_t on) {
+	display_set_time(me, TRUE, on);
+}
+
+
+static inline void inc_settime_year(struct UI *me) {
+	inc_year(&me->settime);
+}
+
+static inline void dec_settime_year(struct UI *me) {
+	dec_year(&me->settime);
+}
+
+static inline void inc_settime_month(struct UI *me) {
+	inc_month(&me->settime);
+}
+
+static inline void dec_settime_month(struct UI *me) {
+	dec_month(&me->settime);
+}
+
+static inline void inc_settime_day(struct UI *me) {
+	inc_day(&me->settime);
+}
+
+static inline void dec_settime_day(struct UI *me) {
+	dec_day(&me->settime);
+}
+
+
+#define M_CHECK()
+
+/**
+ * Create two functions to manage setting one time element.
+ *
+ * @param name_ The name of this time setting state
+ *
+ * @param flash_ The name of the state that flashes the time element we're
+ * setting.
+ *
+ * @param parent_ The name of the parent state to the first of the time setting
+ * states.  Would normally be uiMenu, but the days setting requires some
+ * specialised entry code.
+ *
+ * @param next_ The name of the state to go to when the user accepts the current
+ * selection.
+ *
+ * @param displaych_ The character to display at the left end of the LCD,
+ * indicating what we are setting.
+ *
+ * @param display_ A function to display the current value on the LCD.  It gets
+ * called with two args - a pointer to struct Time, and a boolean value to
+ * indicate whether we're in the on or off part of the flash.
+ *
+ * @param inc_ A function to increase the current value.  It gets called with
+ * one arg, a pointer to struct Time.
+ *
+ * @param dec_ A function to decrease the current value.  It gets called with
+ * one arg, a pointer to struct Time.
+ */
+#define M(name_,flash_,parent_,next_,displaych_,display_,inc_,dec_)	\
+	static QState name_(struct UI *me)				\
+	{								\
+		switch (Q_SIG(me)) {					\
+		case Q_ENTRY_SIG:					\
+			me->settime_YmdHM = displaych_;			\
+			/* Include code here to check the initial */	\
+			/* conditions for this time setting state. */	\
+			M_CHECK();					\
+			display_(me, TRUE);				\
+			QActive_armX((QActive*)me, 1, 17);		\
+			return Q_HANDLED();				\
+		case Q_TIMEOUT1_SIG:					\
+		return Q_TRAN(flash_);					\
+		case BUTTON_1_PRESS_SIGNAL:				\
+			ACTION();					\
+			return Q_TRAN(next_);				\
+		case BUTTON_2_PRESS_SIGNAL:				\
+		case BUTTON_2_LONG_PRESS_SIGNAL:			\
+		case BUTTON_2_REPEAT_SIGNAL:				\
+			ACTION();					\
+			inc_(me);					\
+			display_(me, TRUE);				\
+			QActive_armX((QActive*)me, 1, 17);		\
+			return Q_HANDLED();				\
+		case BUTTON_3_PRESS_SIGNAL:				\
+		case BUTTON_3_LONG_PRESS_SIGNAL:			\
+		case BUTTON_3_REPEAT_SIGNAL:				\
+			ACTION();					\
+			dec_(me);					\
+			display_(me, TRUE);				\
+			QActive_armX((QActive*)me, 1, 17);		\
+			return Q_HANDLED();				\
+		}							\
+		return Q_SUPER(parent_);				\
+	}								\
+									\
+	static QState flash_(struct UI *me)				\
+	{								\
+		switch (Q_SIG(me)) {					\
+		case Q_ENTRY_SIG:					\
+			display_(me, FALSE);				\
+			QActive_armX((QActive*)me, 1, 8);		\
+			return Q_HANDLED();				\
+		case Q_TIMEOUT1_SIG:					\
+			display_(me, TRUE);				\
+			return Q_TRAN(name_);				\
+		case BUTTON_2_PRESS_SIGNAL:				\
+		case BUTTON_2_LONG_PRESS_SIGNAL:			\
+		case BUTTON_2_REPEAT_SIGNAL:				\
+		case BUTTON_3_PRESS_SIGNAL:				\
+		case BUTTON_3_LONG_PRESS_SIGNAL:			\
+		case BUTTON_3_REPEAT_SIGNAL:				\
+			display_(me, TRUE);				\
+			/* React to the event, but don't handle it. */	\
+			break;						\
+		case Q_EXIT_SIG:					\
+			QActive_armX((QActive*)me, 1, 17);		\
+			return Q_HANDLED();				\
+		}							\
+		return Q_SUPER(name_);					\
+	}
+
+
+M(uiMenuSettimeYears, uiMenuSettimeYearsFlash, uiMenu, uiMenuSettimeMonths,
+  'Y', display_set_year, inc_settime_year, dec_settime_year);
+
+M(uiMenuSettimeMonths, uiMenuSettimeMonthsFlash, uiMenu, uiMenuSettimeDays,
+  'm', display_set_month, inc_settime_month, dec_settime_month);
+
+#undef M_CHECK
+
+/**
+ * This macro is defined before the M() macro call for the days setting state.
+ * It checks that the number of days does not exceed the maximum number of days
+ * for the set month, so we don't try to set Feb 31st, for example.
+ */
+#define M_CHECK()							\
+	{								\
+	uint8_t max_day = max_day_for_month(&me->settime);		\
+	if (me->settime.day > max_day) {				\
+		me->settime.day = max_day;				\
+	}								\
+	}
+
+M(uiMenuSettimeDays, uiMenuSettimeDaysFlash, uiMenuSettimeDaysCheckmax,
+  uiMenuSettimeHours,
+  'd', display_set_day, inc_settime_day, dec_settime_day);
+
+#undef M_CHECK
+
+/**
+ * Provides an extra entry action for uiMenuSettimeDays().
+ *
+ * Because the code for uiMenuSettimeDays() is generated by a macro, we can't
+ * add extra code in its entry action to check the range of the days of the
+ * month.  So add an extra state instead.  The only thing that this state does
+ * is to check the days range on entry.
+ */
+static QState uiMenuSettimeDaysCheckmax(struct UI *me)
+{
+	uint8_t max_day;
+
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		max_day = max_day_for_month(&me->settime);
+		if (me->settime.day > max_day) {
+			me->settime.day = max_day;
+		}
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
+/**
+ * @TODO Implement all the functions below with the M() macro.  Make sure the
+ * new ones (year, month, day) work before replacing the existing ones.
+ *
+ * @TODO make the names consistent.  There's a mix of camel case and _
+ * separated names in here.  Making that consistent will allow us to use token
+ * pasting and simplify the macro calls.
+ *
+ * @todo use token pasting (ie a##b)
+ */
 
 
 static QState uiMenuSettimeHours(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		me->settime_hm = 'H';
-		me->settime = *gettimep();
+		me->settime_YmdHM = 'H';
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
@@ -576,7 +773,7 @@ static QState uiMenuSettimeHours(struct UI *me)
 	case BUTTON_2_LONG_PRESS_SIGNAL:
 	case BUTTON_2_REPEAT_SIGNAL:
 		ACTION();
-		inc_set_time_hours(me);
+		inc_hour(&me->settime);
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
@@ -584,7 +781,7 @@ static QState uiMenuSettimeHours(struct UI *me)
 	case BUTTON_3_LONG_PRESS_SIGNAL:
 	case BUTTON_3_REPEAT_SIGNAL:
 		ACTION();
-		dec_set_time_hours(me);
+		dec_hour(&me->settime);
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
@@ -624,7 +821,7 @@ static QState uiMenuSettimeMinutes(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		me->settime_hm = 'M';
+		me->settime_YmdHM = 'M';
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
@@ -637,7 +834,7 @@ static QState uiMenuSettimeMinutes(struct UI *me)
 	case BUTTON_2_LONG_PRESS_SIGNAL:
 	case BUTTON_2_REPEAT_SIGNAL:
 		ACTION();
-		inc_set_time_minutes(me);
+		inc_minute(&me->settime);
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
@@ -645,7 +842,7 @@ static QState uiMenuSettimeMinutes(struct UI *me)
 	case BUTTON_3_LONG_PRESS_SIGNAL:
 	case BUTTON_3_REPEAT_SIGNAL:
 		ACTION();
-		dec_set_time_minutes(me);
+		dec_minute(&me->settime);
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
@@ -721,95 +918,94 @@ static QState uiMenuSettimeConfirmNo(struct UI *me)
 }
 
 
+static void display_set_year(struct UI *me, uint8_t on)
+{
+	char disp[8];
+
+	SERIALSTR("<dsY>");
+
+	Q_ASSERT( me->settime.year >= 2014 );
+	Q_ASSERT( me->settime.year <= 2399 );
+	disp[0] = me->settime_YmdHM;
+	if (on) {
+		disp[1] = disp[2] = ' ';
+		snprintf(disp+3, 5, "%4d", me->settime.year);
+	} else {
+		disp[1] = disp[2] = disp[3] = disp[4] = disp[5] = disp[6] = ' ';
+	}
+	disp[7] = '\0';
+	SERIALSTR("{");
+	serial_send(disp);
+	SERIALSTR("}");
+	lcd_showstring(disp);
+}
+
+
+static void display_set_month(struct UI *me, uint8_t on)
+{
+	char disp[8];
+	const char *mname = "???";
+
+	SERIALSTR("<dsm>");
+
+	Q_ASSERT( me->settime.month <= 12 );
+	disp[0] = me->settime_YmdHM;
+	if (on) {
+		switch (me->settime.month) {
+		case 1: mname = "JAN"; break;
+		case 2: mname = "FEB"; break;
+		case 3: mname = "MAR"; break;
+		case 4: mname = "APR"; break;
+		case 5: mname = "MAY"; break;
+		case 6: mname = "JUN"; break;
+		case 7: mname = "JUL"; break;
+		case 8: mname = "AUG"; break;
+		case 9: mname = "SEP"; break;
+		case 10: mname = "OCT"; break;
+		case 11: mname = "NOV"; break;
+		case 12: mname = "DEC"; break;
+		}
+		disp[1] = disp[2] = disp[3] = ' ';
+		strncpy(disp+4, mname, 4);
+		Q_ASSERT( ! disp[7] );
+	} else {
+		disp[1] = disp[2] = disp[3] = ' ';
+		disp[4] = disp[5] = disp[6] = ' ';
+		disp[7] = '\0';
+	}
+	lcd_showstring(disp);
+}
+
+
+static void display_set_day(struct UI *me, uint8_t on)
+{
+	char disp[8];
+
+	SERIALSTR("<dsd>");
+
+	snprintf(disp, 8, "Day  %2u", me->settime.day);
+	Q_ASSERT( ! disp[7] );
+	lcd_showstring(disp);
+}
+
+
 static void display_set_time(struct UI *me,
 			     uint8_t show_hours, uint8_t show_minutes)
 {
 	char disp[8];
 
-	disp[0] = me->settime_hm;
-	disp[1] = disp[2] = ' ';
-	if (show_hours) {
-		disp[3] = me->settime.ht;
-		disp[4] = me->settime.h1;
-	} else {
-		disp[3] = disp[4] = ' ';
-	}
-	if (show_minutes) {
-		disp[5] = me->settime.mt;
-		disp[6] = me->settime.m1;
-	} else {
-		disp[5] = disp[6] = ' ';
-	}
-	disp[7] = '\0';
+	SERIALSTR("<dsT>");
+
+	snprintf(disp, 8, "%c  %c%c%c%c", me->settime_YmdHM,
+		 show_hours ? me->settime.ht : ' ',
+		 show_hours ? me->settime.h1 : ' ',
+		 show_minutes ? me->settime.mt : ' ',
+		 show_minutes ? me->settime.m1 : ' ');
+	Q_ASSERT( ! disp[7] );
+	SERIALSTR("{");
+	serial_send(disp);
+	SERIALSTR("}");
 	lcd_showstring(disp);
-}
-
-
-static void inc_set_time_hours(struct UI *me)
-{
-	struct Time *time;
-
-	time = &me->settime;
-	if (time->ht == '2' && time->h1 == '3') {
-		time->ht = '0';
-		time->h1 = '0';
-	} else if (time->h1 == '9') {
-		time->h1 = '0';
-		time->ht ++;
-	} else {
-		time->h1 ++;
-	}
-}
-
-
-static void dec_set_time_hours(struct UI *me)
-{
-	struct Time *time;
-
-	time = &me->settime;
-	if (time->ht == '0' && time->h1 == '0') {
-		time->ht = '2';
-		time->h1 = '3';
-	} else if (time->h1 == '0') {
-		time->h1 = '9';
-		time->ht --;
-	} else {
-		time->h1 --;
-	}
-}
-
-
-static void inc_set_time_minutes(struct UI *me)
-{
-	struct Time *time;
-
-	time = &me->settime;
-	if (time->mt == '5' && time->m1 == '9') {
-		time->mt = '0';
-		time->m1 = '0';
-	} else if (time->m1 == '9') {
-		time->m1 = '0';
-		time->mt ++;
-	} else {
-		time->m1 ++;
-	}
-}
-
-
-static void dec_set_time_minutes(struct UI *me)
-{
-	struct Time *time;
-
-	time = &me->settime;
-	if (time->mt == '0' && time->m1 == '0') {
-		time->mt = '5';
-		time->m1 = '9';
-	} else if (time->m1 == '0') {
-		time->m1 = '9';
-		time->mt --;
-	} else {
-		time->m1 --;
-	}
 }
 
 
