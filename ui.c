@@ -5,6 +5,8 @@
 #include "lcd.h"
 #include "rtc.h"
 #include "time.h"
+#include "titime.h"
+#include "recorder.h"
 #include <string.h>
 #include <stdio.h>		/* For snprintf() */
 /* Contains declarations of temperature sensing ranges: MINTI, MAXTI,
@@ -24,9 +26,6 @@ static QState scroll(struct UI *me);
 static QState scrollText(struct UI *me);
 
 static QState uiRun(struct UI *me);
-static QState uiPause(struct UI *me);
-static QState uiTemperature(struct UI *me);
-static QState uiGetTemperature(struct UI *me);
 
 static QState uiMenu(struct UI *me);
 
@@ -75,7 +74,7 @@ void ui_ctor(void)
 {
 	QActive_ctor((QActive*)(&ui), (QStateHandler)(&uiInitial));
 	ui.ti = INVALIDTI;
-	ui.calibration = BSP_get_calibration();
+	ui.cal = get_calibration();
 }
 
 
@@ -119,6 +118,12 @@ static QState uiTop(struct UI *me)
 			lcd_colon(0);
 		}
 		return Q_HANDLED();
+	case CURRENT_TEMPERATURE_SIGNAL:
+		/* Handle this signal here, so that no matter where the UI is,
+		   the current temperature will be available when it's
+		   finished. */
+		me->ti = (int16_t) Q_PAR(me);
+		return Q_HANDLED();
 	}
 	return Q_SUPER(QHsm_top);
 }
@@ -130,7 +135,7 @@ static QState scroll(struct UI *me)
 	case Q_ENTRY_SIG:
 		me->scrollstring = banner;
 		me->scrollindex = 0;
-		BSP_fast_timers(1, 0);
+		BSP_fast_timer_1(TRUE);
 		return Q_HANDLED();
 	case BUTTON_1_PRESS_SIGNAL:
 	case BUTTON_1_LONG_PRESS_SIGNAL:
@@ -141,7 +146,10 @@ static QState scroll(struct UI *me)
 	case BUTTON_3_PRESS_SIGNAL:
 	case BUTTON_3_LONG_PRESS_SIGNAL:
 	case BUTTON_3_REPEAT_SIGNAL:
-		return Q_TRAN(uiTemperature);
+		return Q_TRAN(uiRun);
+	case Q_EXIT_SIG:
+		BSP_fast_timer_1(FALSE);
+		return Q_HANDLED();
 	}
 	return Q_SUPER(uiTop);
 }
@@ -161,7 +169,7 @@ static QState scrollText(struct UI *me)
 		if (me->scrollstring[me->scrollindex]) {
 			return Q_TRAN(scrollText);
 		} else {
-			return Q_TRAN(uiTemperature);
+			return Q_TRAN(uiRun);
 		}
 	}
 	return Q_SUPER(scroll);
@@ -173,65 +181,12 @@ static QState uiRun(struct UI *me)
 	switch (Q_SIG(me)) {
 	case BUTTON_1_PRESS_SIGNAL:
 		return Q_TRAN(uiMenuMaybeSettime);
+	case CURRENT_TEMPERATURE_SIGNAL:
+		me->ti = (int16_t) Q_PAR(me);
+		show_temperature(me);
 	}
 	return Q_SUPER(uiTop);
 }
-
-
-static QState uiPause(struct UI *me)
-{
-	switch (Q_SIG(me)) {
-	case Q_ENTRY_SIG:
-		BSP_fast_timers(0, 0);
-		QActive_arm((QActive*)me, 1);
-		return Q_HANDLED();
-	case Q_TIMEOUT_SIG:
-		return Q_TRAN(uiTemperature);
-	}
-	return Q_SUPER(uiRun);
-}
-
-
-static QState uiTemperature(struct UI *me)
-{
-	switch (Q_SIG(me)) {
-	case Q_ENTRY_SIG:
-		BSP_fast_timers(1, 0);
-		// Start reading the temperature.
-		BSP_start_temperature_reading();
-		// If we time out, go back to just waiting.
-		QActive_armX((QActive*)me, 1, 1);
-		return Q_HANDLED();
-	case Q_TIMEOUT1_SIG:
-		return Q_TRAN(uiGetTemperature);
-	}
-	return Q_SUPER(uiRun);
-}
-
-
-static QState uiGetTemperature(struct UI *me)
-{
-	int16_t ti;
-
-	switch (Q_SIG(me)) {
-	case Q_ENTRY_SIG:
-		BSP_get_temperature();
-		QActive_armX((QActive*)me, 1, 2);
-		return Q_HANDLED();
-	case TEMPERATURE_SIGNAL:
-		ti = (int16_t) Q_PAR(me);
-		/* Only update the display if the temperature has changed. */
-		if (INVALIDTI == me->ti || ti != me->ti) {
-			me->ti = ti;
-			show_temperature(me);
-		}
-		return Q_TRAN(uiPause);
-	case Q_TIMEOUT1_SIG:
-		return Q_TRAN(uiPause);
-	}
-	return Q_SUPER(uiTemperature);
-}
-
 
 
 static int16_t get_calibrated_ti(struct UI *me)
@@ -246,7 +201,7 @@ static int16_t get_calibrated_ti(struct UI *me)
 	if ((LOWTI == me->ti) || (HIGHTI == me->ti)) {
 		adjti = me->ti;
 	} else {
-		adjti = me->ti + me->calibration;
+		adjti = me->ti + me->cal;
 		serial_send_int(adjti);
 		/* If the calibration moved the value outside the
 		   allowed range, indicate that. */
@@ -301,38 +256,19 @@ const char hightistring[] = " +++";
 
 static void show_temperature(struct UI *me)
 {
-	int16_t adjti;
 	const char *tstring;
+	int16_t ti = me->ti;
 
-	adjti = get_calibrated_ti(me);
-
-	if (LOWTI == adjti) {
-		SERIALSTR("LOW: ");
-		serial_send_int(adjti);
-		SERIALSTR("\r\n");
-		lcd_clear();
-		lcd_showstring(lowtistring);
-		return;
-	}
-	if (HIGHTI == adjti) {
-		SERIALSTR("HIGH: ");
-		serial_send_int(adjti);
-		SERIALSTR("\r\n");
-		lcd_clear();
-		lcd_showstring(hightistring);
-		return;
-	}
-
-	SERIALSTR("adjti: ");
-	serial_send_int(adjti);
+	SERIALSTR("ti: ");
+	serial_send_int(ti);
 	SERIALSTR(":");
-	adjti -= MINTI;		/* Move the scale up to zero-based. */
-	Q_ASSERT( adjti >= 0 );	/* Range checking. */
-	Q_ASSERT( adjti < NCONVERSIONS );
-	adjti /= 2;		/* Scale to whole degrees. */
-	serial_send_int(adjti);
+	ti -= MINTI;		/* Move the scale up to zero-based. */
+	Q_ASSERT( ti >= 0 );	/* Range checking. */
+	Q_ASSERT( ti < NCONVERSIONS );
+	ti /= 2;		/* Scale to whole degrees. */
+	serial_send_int(ti);
 	SERIALSTR("\"");
-	tstring = tstrings[adjti];
+	tstring = tstrings[ti];
 	serial_send(tstring);
 	SERIALSTR("\"\r\n");
 	lcd_showstring(tstring);
@@ -428,10 +364,10 @@ static void show_temperature_cal(struct UI *me)
 
 	strcpy(s, tstrings_cal[adjti]);
 
-	Q_ASSERT( me->calibration >= MIN_CAL );
-	Q_ASSERT( me->calibration <= MAX_CAL );
+	Q_ASSERT( me->cal >= MIN_CAL );
+	Q_ASSERT( me->cal <= MAX_CAL );
 
-	strcpy(s+4, calstrings[ me->calibration - MIN_CAL ]);
+	strcpy(s+4, calstrings[ me->cal - MIN_CAL ]);
 
 	{
 		SERIALSTR("cal ");
@@ -464,7 +400,8 @@ static QState uiMenu(struct UI *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		ACTION();
-		BSP_fast_timers(1, 2);
+		BSP_fast_timer_1(TRUE);
+		BSP_fast_timer_2(TRUE);
 		return Q_HANDLED();
 	case UI_ACTION_SIGNAL:
 		SERIALSTR("U");
@@ -479,9 +416,11 @@ static QState uiMenu(struct UI *me)
 			QActive_armX((QActive*)(me), 2, 50);
 			return Q_HANDLED();
 		} else {
-			return Q_TRAN(uiTemperature);
+			return Q_TRAN(uiRun);
 		}
 	case Q_EXIT_SIG:
+		BSP_fast_timer_1(FALSE);
+		BSP_fast_timer_2(FALSE);
 		lcd_timeouts(0);
 		return Q_HANDLED();
 	}
@@ -566,7 +505,7 @@ static QState uiMenuMaybeExit(struct UI *me)
 		return Q_HANDLED();
 	case BUTTON_1_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiTemperature);
+		return Q_TRAN(uiRun);
 	case BUTTON_2_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeSettime);
@@ -1057,21 +996,21 @@ static QState uiMenuCalibrate(struct UI *me)
 	case BUTTON_1_PRESS_SIGNAL:
 		ACTION();
 		SERIALSTR("b1\r\n");
-		BSP_save_calibration(me->calibration);
+		set_calibration(me->cal);
 		return Q_TRAN(uiMenuMaybeCalibrate);
 	case BUTTON_2_PRESS_SIGNAL:
 		ACTION();
-		if (me->calibration < MAX_CAL) {
+		if (me->cal < MAX_CAL) {
 			SERIALSTR("up\r\n");
-			me->calibration ++;
+			me->cal ++;
 			show_temperature_cal(me);
 		}
 		return Q_HANDLED();
 	case BUTTON_3_PRESS_SIGNAL:
 		ACTION();
-		if (me->calibration > MIN_CAL) {
+		if (me->cal > MIN_CAL) {
 			SERIALSTR("down\r\n");
-			me->calibration --;
+			me->cal --;
 			show_temperature_cal(me);
 		}
 		return Q_HANDLED();

@@ -82,6 +82,12 @@ enum HcSignals {
 	BUTTON_3_REPEAT_SIGNAL,
 	BUTTON_3_RELEASE_SIGNAL,
 
+	/**
+	 * Sent to notify the UI of the current temperature.  Q_PAR() will be
+	 * the temperature.
+	 */
+	CURRENT_TEMPERATURE_SIGNAL,
+
 	MAX_PUB_SIG,
 	MAX_SIG,
 };

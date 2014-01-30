@@ -46,4 +46,8 @@ void dec_minute(struct Time *time);
 
 uint8_t max_day_for_month(struct Time *time);
 
+int8_t compare_times(const struct Time *t1, const struct Time *t2);
+int8_t compare_dates(const struct Time *t1, const struct Time *t2);
+int8_t compare_time(struct Time *t1, struct Time *t2);
+
 #endif

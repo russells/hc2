@@ -38,7 +38,7 @@
 #define QF_TIMEEVT_CTR_SIZE     1
 
 /* maximum # active objects--must match EXACTLY the QF_active[] definition  */
-#define QF_MAX_ACTIVE           3 /* rtc, buttons, ui */
+#define QF_MAX_ACTIVE           4 /* rtc, recorder, buttons, ui */
 
                                 /* interrupt locking policy for task level */
 #define QF_INT_DISABLE()        __disable_interrupt()

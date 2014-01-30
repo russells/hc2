@@ -11,6 +11,7 @@ SRCS = $(PROG).c bsp-449STK2.c \
 	buttons.c \
 	lcd-449STK2.c \
 	morse.c \
+	recorder.c \
 	rtc.c \
 	time.c \
 	ui.c \

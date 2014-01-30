@@ -1,6 +1,7 @@
 #include "bsp.h"
 #include "hc.h"
 #include "ui.h"
+#include "recorder.h"
 #include "buttons.h"
 #include "qpn_port.h"
 #include "morse.h"
@@ -24,7 +25,11 @@ Q_DEFINE_THIS_MODULE("b");
 static int16_t convert_adc_to_temperature(uint16_t adc);
 
 
+/** If true, timer A is required and we want QP fast timer 1 running. */
 static volatile uint8_t fast_timer_1 = 0;
+
+
+/** If true, timer A is required and we want QP fast timer 2 running. */
 static volatile uint8_t fast_timer_2 = 0;
 
 
@@ -69,11 +74,26 @@ static void timer_a_init(void)
 }
 
 
-void BSP_fast_timers(uint8_t t1onoff, uint8_t t2onoff)
+/**
+ * Ensure the fast timers are running.
+ *
+ * If either of both of the fast timers are required and Timer A is off, turn
+ * on Timer A.  Otherwise, turn off Timer A.
+ */
+static void BSP_fast_timers(void)
 {
-	if (t1onoff || t2onoff) {
+	SERIALSTR("(");
+	serial_send_int(fast_timer_1);
+	SERIALSTR("*");
+	serial_send_int(fast_timer_2);
+	SERIALSTR(")");
+	if (fast_timer_1 || fast_timer_2) {
 		if (! (TACTL & MC0)) {
 			SERIALSTR("+");
+			if (fast_timer_1)
+				SERIALSTR("1");
+			if (fast_timer_2)
+				SERIALSTR("2");
 			/* Start TIMER_A */
 			TAR = 0;
 			SB(TACTL, MC0); /* Up mode */
@@ -86,8 +106,45 @@ void BSP_fast_timers(uint8_t t1onoff, uint8_t t2onoff)
 		   buttons, so tell the buttons state machine about that. */
 		postISR((QActive*)(&buttons), BUTTONS_SIGNAL, 0);
 	}
-	fast_timer_1 = t1onoff;
-	fast_timer_2 = t2onoff;
+}
+
+
+/**
+ * Turn the first fast timer on or off.
+ *
+ * We count up at turn on requests and down on turn off requests.  We turn off
+ * the timer when the count gets to zero.  We don't decrement the counter below
+ * zero.  All callers should have balanced on and off calls, but there is a
+ * chance that a caller will not, and we may mask that behaviour with the
+ * counter.
+ *
+ * @param onoff if true, the caller wants the first fast timer on.  Otherwise
+ * the caller wants the first fast timer off.
+ */
+void BSP_fast_timer_1(uint8_t onoff)
+{
+	if (onoff) {
+		fast_timer_1 ++;
+	} else if (fast_timer_1) {
+		fast_timer_1 --;
+	}
+	BSP_fast_timers();
+}
+
+
+/**
+ * Turn the second fast timer on or off.
+ *
+ * @see BSP_fast_timer_1()
+ */
+void BSP_fast_timer_2(uint8_t onoff)
+{
+	if (onoff) {
+		fast_timer_2 ++;
+	} else if (fast_timer_2) {
+		fast_timer_2 --;
+	}
+	BSP_fast_timers();
 }
 
 
@@ -384,7 +441,7 @@ isr_ADC12(void)
 		temperature = previous_temperature;
 		serial_send_int(previous_adc);
 	}
-	postISR((QActive*)(&ui), TEMPERATURE_SIGNAL, temperature);
+	postISR((QActive*)(&recorder), TEMPERATURE_SIGNAL, temperature);
 	ADC12IFG = 0;
 	ADC12IE = 0;
 

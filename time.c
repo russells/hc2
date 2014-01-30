@@ -213,3 +213,38 @@ void dec_minute(struct Time *time)
 		time->m1 --;
 	}
 }
+
+
+int8_t compare_times(const struct Time *t1, const struct Time *t2)
+{
+	if (t1->ht != t2->ht)
+		return t1->ht - t2->ht;
+	if (t1->h1 != t2->h1)
+		return t1->h1 - t2->h1;
+	if (t1->mt != t2->mt)
+		return t1->mt - t2->mt;
+	if (t1->m1 != t2->m1)
+		return t1->m1 - t2->m1;
+	return t1->seconds - t2->seconds;
+}
+
+
+int8_t compare_dates(const struct Time *t1, const struct Time *t2)
+{
+	if (t1->year != t2->year)
+		return t1->year - t2->year;
+	if (t1->month != t2->month)
+		return t1->month - t2->month;
+	return t1->day - t2->day;
+}
+
+
+int8_t compare_time(struct Time *t1, struct Time *t2)
+{
+	int8_t comp;
+	comp = compare_dates(t1, t2);
+	if (comp)
+		return comp;
+	else
+		return compare_times(t1, t2);
+}

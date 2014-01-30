@@ -10,7 +10,7 @@ struct UI {
 	/** Temperature as returned by the BSP.  It is scaled by a factor of
 	    two, so we can show temperature to half a degree. */
 	int16_t ti;
-	int16_t calibration;
+	int16_t cal;
 	int16_t adjustment;	/* Time adjustment, seconds/day. */
 
 	uint8_t timeoutcounter;
