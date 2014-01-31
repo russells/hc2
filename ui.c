@@ -179,6 +179,9 @@ static QState scrollText(struct UI *me)
 static QState uiRun(struct UI *me)
 {
 	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		show_temperature(me);
+		return Q_HANDLED();
 	case BUTTON_1_PRESS_SIGNAL:
 		return Q_TRAN(uiMenuMaybeSettime);
 	case CURRENT_TEMPERATURE_SIGNAL:
@@ -261,14 +264,18 @@ static void show_temperature(struct UI *me)
 
 	SERIALSTR("ti: ");
 	serial_send_int(ti);
-	SERIALSTR(":");
-	ti -= MINTI;		/* Move the scale up to zero-based. */
-	Q_ASSERT( ti >= 0 );	/* Range checking. */
-	Q_ASSERT( ti < NCONVERSIONS );
-	ti /= 2;		/* Scale to whole degrees. */
-	serial_send_int(ti);
+	if (INVALIDTI == me->ti) {
+		tstring = "  ???  ";
+	} else {
+		SERIALSTR(":");
+		ti -= MINTI;	     /* Move the scale up to zero-based. */
+		Q_ASSERT( ti >= 0 ); /* Range checking. */
+		Q_ASSERT( ti < NCONVERSIONS );
+		ti /= 2;	/* Scale to whole degrees. */
+		serial_send_int(ti);
+		tstring = tstrings[ti];
+	}
 	SERIALSTR("\"");
-	tstring = tstrings[ti];
 	serial_send(tstring);
 	SERIALSTR("\"\r\n");
 	lcd_showstring(tstring);
