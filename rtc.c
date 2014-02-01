@@ -25,7 +25,7 @@ struct RTC rtc;
 void rtc_ctor(void)
 {
 	QActive_ctor((QActive*)(&rtc), (QStateHandler)(&initial));
-	rtc.time.year = 2014;
+	rtc.time.year = MIN_YEAR;
 	rtc.time.month = 3;
 	rtc.time.day = 7;
 	/* TODO make this default to the time of the ceremony. */

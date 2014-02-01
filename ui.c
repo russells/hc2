@@ -1116,8 +1116,8 @@ static void display_set_year(struct UI *me, uint8_t on)
 
 	SERIALSTR("<dsY>");
 
-	Q_ASSERT( me->settime.year >= 2014 );
-	Q_ASSERT( me->settime.year <= 2399 );
+	Q_ASSERT( me->settime.year >= MIN_YEAR );
+	Q_ASSERT( me->settime.year <= MAX_YEAR );
 	disp[0] = me->settime_YmdHM;
 	if (on) {
 		disp[1] = disp[2] = ' ';

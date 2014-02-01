@@ -155,14 +155,14 @@ uint8_t inc_month(struct Time *time)
 
 void inc_year(struct Time *time)
 {
-	if (time->year < 2399)
+	if (time->year < MAX_YEAR)
 		time->year ++;
 }
 
 
 void dec_year(struct Time *time)
 {
-	if (time->year > 2014)
+	if (time->year > MIN_YEAR)
 		time->year --;
 }
 

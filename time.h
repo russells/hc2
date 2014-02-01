@@ -50,4 +50,7 @@ int8_t compare_times(const struct Time *t1, const struct Time *t2);
 int8_t compare_dates(const struct Time *t1, const struct Time *t2);
 int8_t compare_time(struct Time *t1, struct Time *t2);
 
+#define MIN_YEAR 2014
+#define MAX_YEAR 2099
+
 #endif
