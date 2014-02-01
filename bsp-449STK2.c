@@ -566,8 +566,8 @@ static const char * const adjustment_name = "ADJUSTMENT:";
 #define ADJUSTMENT_LEN 11
 
 /** Base address of the adjustment name.  We allow for the length of the
-    calibration name, plus three bytes for the sign, number, and ';'. */
-static char * const adjustment_base = ((char *)(0x1000 + CALIBRATION_LEN + 3));
+    calibration name, plus four bytes for the sign, two digits, and ';'. */
+static char * const adjustment_base = ((char *)(0x1000 + CALIBRATION_LEN + 4));
 
 
 static int16_t get_saved_num(const char * const base,
@@ -599,14 +599,18 @@ static int16_t get_saved_num(const char * const base,
 		SERIALSTR("<C>\r\n");
 		return 0;
 	}
-	if (base[len+2] != ';') {
+	if (base[len+2] < '0'
+	    || base[len+2] > '9') {
 		SERIALSTR("<D>\r\n");
 		return 0;
 	}
+	if (base[len+3] != ';') {
+		SERIALSTR("<E>\r\n");
+		return 0;
+	}
+	num = 10 * (base[len+1] - '0') + (base[len+2] - '0');
 	if (negative) {
-		num = '0' - base[len+1];
-	} else {
-		num = base[len+1] - '0';
+		num = -num;
 	}
 	SERIALSTR("\r\n");
 	return num;
@@ -652,12 +656,12 @@ static void save_nums(int16_t cal, int16_t adj)
 
 	SERIALSTR("save:");
 
-	Q_ASSERT( cal >= -9 );
-	Q_ASSERT( cal <= 9 );
-	Q_ASSERT( adj >= -9 );
-	Q_ASSERT( adj <= 9 );
+	Q_ASSERT( cal >= MIN_CAL );
+	Q_ASSERT( cal <= MAX_CAL );
+	Q_ASSERT( adj >= MIN_ADJ );
+	Q_ASSERT( adj <= MAX_ADJ );
 
-	slen = snprintf(s, 50, "%s%+d;%s%+d;",
+	slen = snprintf(s, 50, "%s%+03d;%s%+03d;",
 			calibration_name, cal, adjustment_name, adj);
 	Q_ASSERT( slen <= 49 );
 
