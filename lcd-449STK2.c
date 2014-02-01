@@ -183,6 +183,8 @@ void lcd_showchar(char ch, uint8_t pos)
 	case '+': lb = G|J|M|P;         break; /* ------G-J-M-P- */
 	case '-': lb = G|M;             break; /* ------G---M--- */
 	case '/': lb = K|Q;             break;
+	case '>': lb = H|Q;             break;
+	case '<': lb = K|N;             break;
 	case '?': lb = A|B|M|P;         break;
 
 	case '0': lb = A|B|C|D|E|F|K|Q; break; /* ABCDEF---K---Q */

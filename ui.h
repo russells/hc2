@@ -29,6 +29,12 @@ struct UI {
 	 * Set to indicate the part of the time that the user is setting.
 	 */
 	char settime_YmdHM;
+
+	/**
+	 * Used to implement a simple informal linear state machine when we are
+	 * displaying the maximum or minimum temperatures.
+	 */
+	uint8_t showmaxmincounter;
 };
 
 

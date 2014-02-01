@@ -12,6 +12,7 @@ Q_DEFINE_THIS_MODULE("rec");
 
 struct Recorder recorder;
 
+static void init_titime(struct TiTime *titime);
 static QState initial(struct Recorder *me);
 static QState top(struct Recorder *me);
 static QState waiting(struct Recorder *me);
@@ -36,10 +37,10 @@ void recorder_ctor(void)
 {
 	QActive_ctor(&recorder.super, (QStateHandler)(&initial));
 	recorder.ti = INVALIDTI;
-	recorder.max_today.ti = INVALIDTI;
-	recorder.max_yesterday.ti = INVALIDTI;
-	recorder.min_today.ti = INVALIDTI;
-	recorder.min_yesterday.ti = INVALIDTI;
+	init_titime(&recorder.max_today);
+	init_titime(&recorder.max_yesterday);
+	init_titime(&recorder.min_today);
+	init_titime(&recorder.min_yesterday);
 	recorder.calibration = BSP_get_calibration();
 }
 
@@ -55,6 +56,15 @@ static QState top(struct Recorder *me)
 	return Q_SUPER(&QHsm_top);
 }
 
+
+static void init_titime(struct TiTime *titime)
+{
+	titime->ti = INVALIDTI;
+	titime->time.ht = '9';
+	titime->time.h1 = '9';
+	titime->time.mt = '9';
+	titime->time.m1 = '9';
+}
 
 static QState waiting(struct Recorder *me)
 {
@@ -167,6 +177,7 @@ static void save_extreme(struct TiTime *today, struct TiTime *yesterday,
 		today->ti = INVALIDTI;
 	}
 	if ( (INVALIDTI == today->ti) || (*compare)(ti, today->ti) ) {
+		today->time = *gettimep();
 		today->ti = ti;
 	}
 }

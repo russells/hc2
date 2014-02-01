@@ -29,6 +29,12 @@ static QState uiRun(struct UI *me);
 
 static QState uiMenu(struct UI *me);
 
+static QState uiShowMaxOrMin(struct UI *me);
+static QState uiShowMaxTop(struct UI *me);
+static QState uiShowMax(struct UI *me);
+static QState uiShowMinTop(struct UI *me);
+static QState uiShowMin(struct UI *me);
+
 static QState uiMenuMaybeSettime(struct UI *me);
 static QState uiMenuSettimeYears(struct UI *me);
 static QState uiMenuSettimeYearsFlash(struct UI *me);
@@ -54,7 +60,7 @@ static QState uiMenuAdjusttime(struct UI *me);
 
 static QState uiMenuMaybeExit(struct UI *me);
 
-static void show_temperature(struct UI *me);
+static void show_temperature(int16_t t);
 static void show_temperature_cal(struct UI *me);
 
 
@@ -180,13 +186,17 @@ static QState uiRun(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		show_temperature(me);
+		show_temperature(me->ti);
 		return Q_HANDLED();
 	case BUTTON_1_PRESS_SIGNAL:
 		return Q_TRAN(uiMenuMaybeSettime);
+	case BUTTON_2_PRESS_SIGNAL:
+		return Q_TRAN(uiShowMax);
+	case BUTTON_3_PRESS_SIGNAL:
+		return Q_TRAN(uiShowMin);
 	case CURRENT_TEMPERATURE_SIGNAL:
 		me->ti = (int16_t) Q_PAR(me);
-		show_temperature(me);
+		show_temperature(me->ti);
 	}
 	return Q_SUPER(uiTop);
 }
@@ -257,23 +267,22 @@ const char lowtistring[] = " ---";
 const char hightistring[] = " +++";
 
 
-static void show_temperature(struct UI *me)
+static void show_temperature(int16_t t)
 {
 	const char *tstring;
-	int16_t ti = me->ti;
 
-	SERIALSTR("ti: ");
-	serial_send_int(ti);
-	if (INVALIDTI == me->ti) {
+	SERIALSTR("t: ");
+	serial_send_int(t);
+	if (INVALIDTI == t) {
 		tstring = "  ???  ";
 	} else {
 		SERIALSTR(":");
-		ti -= MINTI;	     /* Move the scale up to zero-based. */
-		Q_ASSERT( ti >= 0 ); /* Range checking. */
-		Q_ASSERT( ti < NCONVERSIONS );
-		ti /= 2;	/* Scale to whole degrees. */
-		serial_send_int(ti);
-		tstring = tstrings[ti];
+		t -= MINTI;	    /* Move the scale up to zero-based. */
+		Q_ASSERT( t >= 0 ); /* Range checking. */
+		Q_ASSERT( t < NCONVERSIONS );
+		t /= 2;		/* Scale to whole degrees. */
+		serial_send_int(t);
+		tstring = tstrings[t];
 	}
 	SERIALSTR("\"");
 	serial_send(tstring);
@@ -395,6 +404,220 @@ static void show_temperature_cal(struct UI *me)
 	lcd_clear();
 	lcd_showstring(s);
 }
+
+
+// ----- max and min -----
+
+
+static void show_at(const struct Time *at)
+{
+	char buf[8];
+
+	buf[7] = 'a';
+	snprintf(buf, 8, "AT %c%c%c%c", at->ht, at->h1, at->mt, at->m1);
+	Q_ASSERT( ! buf[7] );
+	SERIALSTR("AT(");
+	serial_send_int(at->ht);
+	serial_send_char(':');
+	serial_send_int(at->h1);
+	serial_send_char(':');
+	serial_send_int(at->mt);
+	serial_send_char(':');
+	serial_send_int(at->m1);
+	SERIALSTR(")");
+	lcd_showstring(buf);
+}
+
+
+static QState uiShowMaxOrMin(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		BSP_fast_timer_1(TRUE);
+		return Q_HANDLED();
+	case Q_EXIT_SIG:
+		BSP_fast_timer_1(FALSE);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiTop);
+}
+
+
+static const QTimeEvtCtr showmaxmintimeout = 15;
+
+
+static QState uiShowMaxTop(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		me->showmaxmincounter = 0;
+		return Q_HANDLED();
+	case BUTTON_3_PRESS_SIGNAL:
+		return Q_TRAN(uiShowMin);
+	}
+	return Q_SUPER(uiShowMaxOrMin);
+}
+
+
+static QState uiShowMax(struct UI *me)
+{
+	QTimeEvtCtr timeout = showmaxmintimeout;
+	int16_t ti;
+
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		me->showmaxmincounter ++;
+		switch (me->showmaxmincounter) {
+		case 1:
+			lcd_showstring("MAX T  ");
+			timeout = showmaxmintimeout;
+			break;
+		case 2:
+			lcd_showstring("SINCE  ");
+			timeout = showmaxmintimeout;
+			break;
+		case 3:
+			lcd_showstring("3 PM   ");
+			timeout = showmaxmintimeout;
+			break;
+		case 4:
+			ti = get_max_today()->ti;
+			if (INVALIDTI == ti)
+				me->showmaxmincounter ++;
+			show_temperature(ti);
+			timeout = 3 * showmaxmintimeout;
+			break;
+		case 5:
+			show_at(&(get_max_today()->time));
+			timeout = 3 * showmaxmintimeout;
+			break;
+		case 6:
+			lcd_showstring("MAX T  ");
+			timeout = showmaxmintimeout;
+			break;
+		case 7:
+			lcd_showstring("TO LAST");
+			timeout = showmaxmintimeout;
+			break;
+		case 8:
+			lcd_showstring("3 PM   ");
+			timeout = showmaxmintimeout;
+			break;
+		case 9:
+			ti = get_max_yesterday()->ti;
+			if (INVALIDTI == ti)
+				me->showmaxmincounter ++;
+			show_temperature(ti);
+			timeout = 3 * showmaxmintimeout;
+			break;
+		case 10:
+			show_at(&(get_max_yesterday()->time));
+			timeout = 3 * showmaxmintimeout;
+			break;
+		default:
+			Q_ASSERT( 0 );
+			break;
+		}
+		QActive_armX(&me->super, 1, timeout);
+		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+	case BUTTON_2_PRESS_SIGNAL:
+		// This number must match the highest number above.
+		if (10 == me->showmaxmincounter)
+			return Q_TRAN(uiRun);
+		else
+			return Q_TRAN(uiShowMax);
+	}
+	return Q_SUPER(uiShowMaxTop);
+}
+
+
+static QState uiShowMinTop(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		me->showmaxmincounter = 0;
+		return Q_HANDLED();
+	case BUTTON_2_PRESS_SIGNAL:
+		return Q_TRAN(uiShowMax);
+	}
+	return Q_SUPER(uiShowMaxOrMin);
+}
+
+
+static QState uiShowMin(struct UI *me)
+{
+	QTimeEvtCtr timeout = showmaxmintimeout;
+	int16_t ti;
+
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		me->showmaxmincounter ++;
+		switch (me->showmaxmincounter) {
+		case 1:
+			lcd_showstring("MIN T  ");
+			timeout = showmaxmintimeout;
+			break;
+		case 2:
+			lcd_showstring("SINCE  ");
+			timeout = showmaxmintimeout;
+			break;
+		case 3:
+			lcd_showstring("9 AM   ");
+			timeout = showmaxmintimeout;
+			break;
+		case 4:
+			ti = get_min_today()->ti;
+			if (INVALIDTI == ti)
+				me->showmaxmincounter ++;
+			show_temperature(ti);
+			timeout = 3 * showmaxmintimeout;
+			break;
+		case 5:
+			show_at(&(get_min_today()->time));
+			timeout = 3 * showmaxmintimeout;
+			break;
+		case 6:
+			lcd_showstring("MIN T  ");
+			timeout = showmaxmintimeout;
+			break;
+		case 7:
+			lcd_showstring("TO LAST");
+			timeout = showmaxmintimeout;
+			break;
+		case 8:
+			lcd_showstring("9 AM   ");
+			timeout = showmaxmintimeout;
+			break;
+		case 9:
+			ti = get_min_yesterday()->ti;
+			if (INVALIDTI == ti)
+				me->showmaxmincounter ++;
+			show_temperature(ti);
+			timeout = 3 * showmaxmintimeout;
+			break;
+		case 10:
+			show_at(&(get_min_yesterday()->time));
+			timeout = 3 * showmaxmintimeout;
+			break;
+		default:
+			Q_ASSERT( 0 );
+			break;
+		}
+		QActive_armX(&me->super, 1, timeout);
+		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+	case BUTTON_3_PRESS_SIGNAL:
+		if (10 == me->showmaxmincounter)
+			return Q_TRAN(uiRun);
+		else
+			return Q_TRAN(uiShowMin);
+	}
+	return Q_SUPER(uiShowMinTop);
+}
+
+
+// ----- ui menu -----
 
 
 /** To be used when the user does something in the UI, to reset the timeout

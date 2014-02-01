@@ -282,17 +282,37 @@ isr_BASICTIMER(void)
 {
 	SERIALSTR("<B>");
 
+	uint8_t b1 = BSP_button_1();
+	uint8_t b2 = BSP_button_2();
+	uint8_t b3 = BSP_button_3();
+
 	P2OUT |= BIT0;
 	BSP_led_on();
 	/* Only check button 1 if the fast timers are not on.  If they are on,
 	   the buttons are checked inside that ISR. */
-	if ( (! (fast_timer_1 || fast_timer_2)) &&  BSP_button_1()) {
-		SERIALSTR("\\1");
-		/* We send the button press signal here (rather than relying on
-		   buttons.c to do it) because it's only when hc is told about
-		   the button being down that it starts the fast timer. */
-		postISR((QActive*)(&ui), BUTTON_1_PRESS_SIGNAL, 0);
-		postISR((QActive*)(&buttons), BUTTONS_WAIT_SIGNAL, 0);
+	if ( ! (fast_timer_1 || fast_timer_2) ) {
+		if (b1) {
+			SERIALSTR("\\1");
+			/* We send the button press signal here (rather than
+			   relying on buttons.c to do it) because it's only
+			   when hc is told about the button being down that it
+			   starts the fast timer. */
+			postISR((QActive*)(&ui), BUTTON_1_PRESS_SIGNAL, 0);
+		}
+		if (b2) {
+			SERIALSTR("\\2");
+			postISR((QActive*)(&ui), BUTTON_2_PRESS_SIGNAL, 0);
+		}
+		if (b3) {
+			SERIALSTR("\\3");
+			postISR((QActive*)(&ui), BUTTON_3_PRESS_SIGNAL, 0);
+		}
+		/* If we sent any of the button signals, then the buttons AO
+		   has to wait until all buttons are up before doing anything
+		   else. */
+		if (b1 || b2 || b3) {
+			postISR((QActive*)(&buttons), BUTTONS_WAIT_SIGNAL, 0);
+		}
 	}
 	/* We have to call QF_tick() after the button events because some parts
 	   of hc (hcTemperature() etc) ignore button events. */
