@@ -187,9 +187,11 @@ void BSP_init(void)
 #ifdef LED
 	P1DIR = BIT3;		/* LED output */
 
+	/* Wait at start so we can see resets. */
 	BSP_led_on();
-	__delay_cycles(2000000L); /* Wait at start so we can see resets. */
+	__delay_cycles(1000000L);
 	BSP_led_off();
+	__delay_cycles(1000000L);
 #endif
 
 	/* Set up the switch inputs.  The 449STK2 board has external pullup
@@ -198,6 +200,40 @@ void BSP_init(void)
 
 	/* A pin for monitoring on time. */
 	P2DIR |= BIT0;
+
+
+	/* Make all the unused pins output zero */
+	SB(P1DIR, 4); CB(P1DIR, 4);
+	SB(P1DIR, 5); CB(P1DIR, 5);
+	SB(P1DIR, 6); CB(P1DIR, 6);
+	SB(P1DIR, 7); CB(P1DIR, 7);
+
+	SB(P2DIR, 0); CB(P2DIR, 0);
+	SB(P2DIR, 1); CB(P2DIR, 1);
+	SB(P2DIR, 2); CB(P2DIR, 2);
+	SB(P2DIR, 3); CB(P2DIR, 3);
+	SB(P2DIR, 4); CB(P2DIR, 4);
+	SB(P2DIR, 5); CB(P2DIR, 5);
+	SB(P2DIR, 6); CB(P2DIR, 6);
+	SB(P2DIR, 7); CB(P2DIR, 7);
+
+	SB(P3DIR, 0); CB(P3DIR, 0);
+	SB(P3DIR, 1); CB(P3DIR, 1);
+	SB(P3DIR, 2); CB(P3DIR, 2);
+	SB(P3DIR, 3); CB(P3DIR, 3);
+	SB(P3DIR, 4); CB(P3DIR, 4);
+	SB(P3DIR, 5); CB(P3DIR, 5);
+	SB(P3DIR, 6); CB(P3DIR, 6);
+	SB(P3DIR, 7); CB(P3DIR, 7);
+
+	SB(P4DIR, 1); CB(P4DIR, 1);
+
+	SB(P6DIR, 2); CB(P6DIR, 2);
+	SB(P6DIR, 3); CB(P6DIR, 3);
+	SB(P6DIR, 4); CB(P6DIR, 4);
+	SB(P6DIR, 5); CB(P6DIR, 5);
+	SB(P6DIR, 6); CB(P6DIR, 6);
+	SB(P6DIR, 7); CB(P6DIR, 7);
 }
 
 
@@ -282,40 +318,8 @@ isr_BASICTIMER(void)
 {
 	SERIALSTR("<B>");
 
-	uint8_t b1 = BSP_button_1();
-	uint8_t b2 = BSP_button_2();
-	uint8_t b3 = BSP_button_3();
-
 	P2OUT |= BIT0;
 	BSP_led_on();
-	/* Only check button 1 if the fast timers are not on.  If they are on,
-	   the buttons are checked inside that ISR. */
-	if ( ! (fast_timer_1 || fast_timer_2) ) {
-		if (b1) {
-			SERIALSTR("\\1");
-			/* We send the button press signal here (rather than
-			   relying on buttons.c to do it) because it's only
-			   when hc is told about the button being down that it
-			   starts the fast timer. */
-			postISR((QActive*)(&ui), BUTTON_1_PRESS_SIGNAL, 0);
-		}
-		if (b2) {
-			SERIALSTR("\\2");
-			postISR((QActive*)(&ui), BUTTON_2_PRESS_SIGNAL, 0);
-		}
-		if (b3) {
-			SERIALSTR("\\3");
-			postISR((QActive*)(&ui), BUTTON_3_PRESS_SIGNAL, 0);
-		}
-		/* If we sent any of the button signals, then the buttons AO
-		   has to wait until all buttons are up before doing anything
-		   else. */
-		if (b1 || b2 || b3) {
-			postISR((QActive*)(&buttons), BUTTONS_WAIT_SIGNAL, 0);
-		}
-	}
-	/* We have to call QF_tick() after the button events because some parts
-	   of hc (hcTemperature() etc) ignore button events. */
 	QF_tick();
 	EXIT_LPM();
 }
@@ -323,16 +327,16 @@ isr_BASICTIMER(void)
 
 void BSP_enable_morse_line(void)
 {
-	P1DIR = BIT3;
+	SB(P1DIR, 3);
 }
 
 
 void BSP_morse_signal(uint8_t onoff)
 {
 	if (onoff) {
-		P1OUT &= ~BIT3;
+		SB(P1OUT, 3);
 	} else {
-		P1OUT |= BIT3;
+		CB(P1OUT, 3);
 	}
 }
 
@@ -360,19 +364,22 @@ void BSP_do_reset(void)
 
 uint8_t BSP_button_1(void)
 {
-	return ! (P3IN & BIT4);
+	//return ! (P3IN & BIT4);
+	return 0;
 }
 
 
 uint8_t BSP_button_2(void)
 {
-	return ! (P3IN & BIT5);
+	//return ! (P3IN & BIT5);
+	return 0;
 }
 
 
 uint8_t BSP_button_3(void)
 {
-	return ! (P3IN & BIT6);
+	//return ! (P3IN & BIT6);
+	return 0;
 }
 
 

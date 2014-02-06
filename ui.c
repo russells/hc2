@@ -275,6 +275,14 @@ static void show_temperature(int16_t t)
 	serial_send_int(t);
 	if (INVALIDTI == t) {
 		tstring = "  ???  ";
+	} else if (LOWTI == t) {
+		tstring = "  ?" "?-  ";
+	} else if (MINTI == t) {
+		tstring = "  ?--  ";
+	} else if (HIGHTI == t) {
+		tstring = "  ?" "?+  ";
+	} else if (MAXTI == t) {
+		tstring = "  ?++  ";
 	} else {
 		SERIALSTR(":");
 		t -= MINTI;	    /* Move the scale up to zero-based. */
