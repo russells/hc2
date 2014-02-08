@@ -25,11 +25,11 @@ Q_DEFINE_THIS_MODULE("b");
 static int16_t convert_adc_to_temperature(uint16_t adc);
 
 
-/** If true, timer A is required and we want QP fast timer 1 running. */
+/** If true, we want QP fast timer 1 running. */
 static volatile uint8_t fast_timer_1 = 0;
 
 
-/** If true, timer A is required and we want QP fast timer 2 running. */
+/** If true, we want QP fast timer 2 running. */
 static volatile uint8_t fast_timer_2 = 0;
 
 
@@ -57,55 +57,8 @@ basic_timer1_init(void)
 	BTCTL = (BTSSEL & 0) |
 		(BTHOLD & 0) |
 		BTDIV |
-		BTIP2 | BTIP1 | BTIP0;
-}
-
-
-static void timer_a_init(void)
-{
-	TACTL = (TASSEL1 & 0) | TASSEL0 | /* ACLK */
-		(ID1 & 0) | (ID0 & 0) |	  /* /1 */
-		(MC1 & 0) | (MC0 & 0) |	  /* Stop mode */
-		(TAIE & 0);		  /* Interrupts off */
-	TAR = 0;
-	TACCR0 = 590;		/* With 32768Hz clock, about 18ms */
-
-	TACCTL0 = CCIE;
-}
-
-
-/**
- * Ensure the fast timers are running.
- *
- * If either of both of the fast timers are required and Timer A is off, turn
- * on Timer A.  Otherwise, turn off Timer A.
- */
-static void BSP_fast_timers(void)
-{
-	SERIALSTR("(");
-	serial_send_int(fast_timer_1);
-	SERIALSTR("*");
-	serial_send_int(fast_timer_2);
-	SERIALSTR(")");
-	if (fast_timer_1 || fast_timer_2) {
-		if (! (TACTL & MC0)) {
-			SERIALSTR("+");
-			if (fast_timer_1)
-				SERIALSTR("1");
-			if (fast_timer_2)
-				SERIALSTR("2");
-			/* Start TIMER_A */
-			TAR = 0;
-			SB(TACTL, MC0); /* Up mode */
-		}
-	} else {
-		SERIALSTR("-");
-		CB(TACTL, MC0);
-
-		/* We are turning off the fast timer interrupt that scans the
-		   buttons, so tell the buttons state machine about that. */
-		postISR((QActive*)(&buttons), BUTTONS_SIGNAL, 0);
-	}
+		/* fCLK2/4 == 32Hz */
+		(BTIP2 * 0) | (BTIP1 & 0) | BTIP0;
 }
 
 
@@ -128,7 +81,6 @@ void BSP_fast_timer_1(uint8_t onoff)
 	} else if (fast_timer_1) {
 		fast_timer_1 --;
 	}
-	BSP_fast_timers();
 }
 
 
@@ -144,7 +96,6 @@ void BSP_fast_timer_2(uint8_t onoff)
 	} else if (fast_timer_2) {
 		fast_timer_2 --;
 	}
-	BSP_fast_timers();
 }
 
 
@@ -180,7 +131,6 @@ void BSP_init(void)
 	_BIS_SR(GIE);
 
 	basic_timer1_init();
-	timer_a_init();
 
 	temperature_input_init();
 
@@ -194,46 +144,49 @@ void BSP_init(void)
 	__delay_cycles(1000000L);
 #endif
 
-	/* Set up the switch inputs.  The 449STK2 board has external pullup
-	   resistors on these pins. */
-	P3DIR = 0;
+	/* Buttons are on P1.0 to P1.3, but P1.0 is used as a LED output for
+	   the moment. */
+	/* Input */
+	//CB(P1DIR, BIT0);
+	CB(P1DIR, BIT1);
+	CB(P1DIR, BIT2);
+	CB(P1DIR, BIT3);
 
 	/* A pin for monitoring on time. */
 	P2DIR |= BIT0;
 
-
 	/* Make all the unused pins output zero */
-	SB(P1DIR, 4); CB(P1DIR, 4);
-	SB(P1DIR, 5); CB(P1DIR, 5);
-	SB(P1DIR, 6); CB(P1DIR, 6);
-	SB(P1DIR, 7); CB(P1DIR, 7);
+	SB(P1DIR, BIT4); CB(P1DIR, BIT4);
+	SB(P1DIR, BIT5); CB(P1DIR, BIT5);
+	SB(P1DIR, BIT6); CB(P1DIR, BIT6);
+	SB(P1DIR, BIT7); CB(P1DIR, BIT7);
 
-	SB(P2DIR, 0); CB(P2DIR, 0);
-	SB(P2DIR, 1); CB(P2DIR, 1);
-	SB(P2DIR, 2); CB(P2DIR, 2);
-	SB(P2DIR, 3); CB(P2DIR, 3);
-	SB(P2DIR, 4); CB(P2DIR, 4);
-	SB(P2DIR, 5); CB(P2DIR, 5);
-	SB(P2DIR, 6); CB(P2DIR, 6);
-	SB(P2DIR, 7); CB(P2DIR, 7);
+	SB(P2DIR, BIT0); CB(P2DIR, BIT0);
+	SB(P2DIR, BIT1); CB(P2DIR, BIT1);
+	SB(P2DIR, BIT2); CB(P2DIR, BIT2);
+	SB(P2DIR, BIT3); CB(P2DIR, BIT3);
+	SB(P2DIR, BIT4); CB(P2DIR, BIT4);
+	SB(P2DIR, BIT5); CB(P2DIR, BIT5);
+	SB(P2DIR, BIT6); CB(P2DIR, BIT6);
+	SB(P2DIR, BIT7); CB(P2DIR, BIT7);
 
-	SB(P3DIR, 0); CB(P3DIR, 0);
-	SB(P3DIR, 1); CB(P3DIR, 1);
-	SB(P3DIR, 2); CB(P3DIR, 2);
-	SB(P3DIR, 3); CB(P3DIR, 3);
-	SB(P3DIR, 4); CB(P3DIR, 4);
-	SB(P3DIR, 5); CB(P3DIR, 5);
-	SB(P3DIR, 6); CB(P3DIR, 6);
-	SB(P3DIR, 7); CB(P3DIR, 7);
+	SB(P3DIR, BIT0); CB(P3DIR, BIT0);
+	SB(P3DIR, BIT1); CB(P3DIR, BIT1);
+	SB(P3DIR, BIT2); CB(P3DIR, BIT2);
+	SB(P3DIR, BIT3); CB(P3DIR, BIT3);
+	SB(P3DIR, BIT4); CB(P3DIR, BIT4);
+	SB(P3DIR, BIT5); CB(P3DIR, BIT5);
+	SB(P3DIR, BIT6); CB(P3DIR, BIT6);
+	SB(P3DIR, BIT7); CB(P3DIR, BIT7);
 
-	SB(P4DIR, 1); CB(P4DIR, 1);
+	SB(P4DIR, BIT1); CB(P4DIR, BIT1);
 
-	SB(P6DIR, 2); CB(P6DIR, 2);
-	SB(P6DIR, 3); CB(P6DIR, 3);
-	SB(P6DIR, 4); CB(P6DIR, 4);
-	SB(P6DIR, 5); CB(P6DIR, 5);
-	SB(P6DIR, 6); CB(P6DIR, 6);
-	SB(P6DIR, 7); CB(P6DIR, 7);
+	SB(P6DIR, BIT2); CB(P6DIR, BIT2);
+	SB(P6DIR, BIT3); CB(P6DIR, BIT3);
+	SB(P6DIR, BIT4); CB(P6DIR, BIT4);
+	SB(P6DIR, BIT5); CB(P6DIR, BIT5);
+	SB(P6DIR, BIT6); CB(P6DIR, BIT6);
+	SB(P6DIR, BIT7); CB(P6DIR, BIT7);
 }
 
 
@@ -246,9 +199,8 @@ void QF_onStartup(void)
 
 void QF_onIdle(void)
 {
-	//SERIALSTR(",");
 	BSP_led_off();
-	P2OUT &= ~(BIT0);
+	//P2OUT &= ~(BIT0);
 #ifdef SERIAL
 	/* If we're running the serial port (for debugging) don't stop SMCLK.
 	   SMCLK keeps running while the CPU is running, and we don't shutdown
@@ -263,80 +215,98 @@ void QF_onIdle(void)
 #ifdef LED
 void BSP_led_on(void)
 {
-	P1OUT &= ~BIT3;
+	// Make the line input, so the pullup works.
+	CB(P1DIR, BIT3);
 }
 
 
 void BSP_led_off(void)
 {
-	P1OUT |= BIT3;
+	// Make the line output and pull it down.
+	SB(P1DIR, BIT3);
+	CB(P1OUT, BIT3);
 }
 #endif
-
-
-static void
-__attribute__((__interrupt__(TIMERA0_VECTOR)))
-isr_TIMERA0(void)
-{
-	uint16_t buttonmask = 0;
-	static volatile uint8_t counter = 0;
-
-	//serial_send_char(',');
-
-	P2OUT |= BIT0;
-
-	BSP_led_on();
-
-	/* The buttons and QP-nano can't keep up with the rate we set with the
-	   timer (18ms), so halve it. */
-	counter ++;
-	if (counter & 0x1) {
-		if (fast_timer_1) {
-			QF_tickXISR(1);
-		}
-		if (fast_timer_2) {
-			QF_tickXISR(2);
-		}
-		if (BSP_button_1()) {
-			buttonmask |= 1;
-		}
-		if (BSP_button_2()) {
-			buttonmask |= 2;
-		}
-		if (BSP_button_3()) {
-			buttonmask |= 4;
-		}
-		postISR((QActive*)(&buttons), BUTTONS_SIGNAL, (QParam)buttonmask);
-	}
-	EXIT_LPM();
-}
 
 
 static void
 __attribute__((__interrupt__(BASICTIMER_VECTOR)))
 isr_BASICTIMER(void)
 {
-	SERIALSTR("<B>");
-
-	P2OUT |= BIT0;
 	BSP_led_on();
-	QF_tick();
+
+	static const uint8_t COUNT = 64; /** We interrupt at fCLK2/4 (ie
+					     32768/(256*4)==32) times per
+					     second.  We want a slow tick every
+					     two seconds, so divide the real
+					     tick rate by 64.  */
+	static volatile uint8_t counter = 0;
+
+	counter ++;
+	if (counter >= COUNT) {
+		counter = 0;
+	}
+
+	uint8_t b1 = BSP_button_1();
+	uint8_t b2 = BSP_button_2();
+	uint8_t b3 = BSP_button_3();
+
+	if ( ! (fast_timer_1 || fast_timer_2) ) {
+		/* Neither fast timer is on, so check the buttons here. */
+		if (b1) {
+			SERIALSTR("\\\\1");
+			postISR(&ui.super, BUTTON_1_PRESS_SIGNAL, 0);
+		} else if (b2) {
+			SERIALSTR("\\\\2");
+			postISR(&ui.super, BUTTON_2_PRESS_SIGNAL, 0);
+		} else if (b3) {
+			SERIALSTR("\\\\3");
+			postISR(&ui.super, BUTTON_3_PRESS_SIGNAL, 0);
+		}
+		if (b1 || b2 || b3) {
+			/* The buttons event will start the fast timer, so tell
+			   the buttons state machine to wait for idle buttons
+			   before proceeding. */
+			postISR(&buttons.super, BUTTONS_WAIT_SIGNAL, 0);
+		}
+	}
+	else {
+		/* One or both of the fast timers is currently on, so punt the
+		   button event checking to the buttons state machine. */
+		QParam buttonmask = 0;
+		if (b1) buttonmask |= 0b0001;
+		if (b2) buttonmask |= 0b0010;
+		if (b3) buttonmask |= 0b0100;
+ 		postISR(&buttons.super, BUTTONS_SIGNAL, buttonmask);
+	}
+
+	if (fast_timer_1) {
+		QF_tickXISR(1);
+	}
+	if (fast_timer_2) {
+		QF_tickXISR(2);
+	}
+
+	if (! counter) {
+		SERIALSTR("<B>");
+		QF_tick();
+	}
 	EXIT_LPM();
 }
 
 
 void BSP_enable_morse_line(void)
 {
-	SB(P1DIR, 3);
+	SB(P1DIR, BIT3);
 }
 
 
 void BSP_morse_signal(uint8_t onoff)
 {
 	if (onoff) {
-		SB(P1OUT, 3);
+		BSP_led_on();
 	} else {
-		CB(P1OUT, 3);
+		BSP_led_off();
 	}
 }
 
@@ -364,27 +334,26 @@ void BSP_do_reset(void)
 
 uint8_t BSP_button_1(void)
 {
-	//return ! (P3IN & BIT4);
-	return 0;
+	return ! (P1IN & BIT3);
 }
 
 
 uint8_t BSP_button_2(void)
 {
-	//return ! (P3IN & BIT5);
-	return 0;
+	return ! (P1IN & BIT2);
 }
 
 
 uint8_t BSP_button_3(void)
 {
-	//return ! (P3IN & BIT6);
-	return 0;
+	return ! (P1IN & BIT1);
 }
 
 
 void BSP_start_temperature_reading(void)
 {
+	SERIALSTR("t");
+
 	P6OUT |= BIT1;		/* Power up the MCP9700A */
 	P6SEL |= BIT0;		/* A0 function on pin P6.0 */
 
@@ -431,6 +400,8 @@ void BSP_start_temperature_reading(void)
 
 void BSP_get_temperature(void)
 {
+	SERIALSTR("T");
+
 	/* Enable our interrupt. */
 	ADC12IE = (1 << 10);
 	/* Start the encoder.  Start the conversion by toggling ADC12SC. */
@@ -454,7 +425,7 @@ isr_ADC12(void)
 	static int16_t previous_temperature = 0;
 
 	//Q_ASSERT(0); // yes
-	P2OUT |= BIT0;
+	//P2OUT |= BIT0;
 
 	adc = ADC12MEM10;
 	serial_send_int(adc);
@@ -585,7 +556,7 @@ static int16_t get_saved_num(const char * const base,
 
 	SERIALSTR("get:");
 
-	serial_send(base);
+	//serial_send(base);
 
 	if (strncmp(name, base, len)) {
 		SERIALSTR("<A>\r\n");

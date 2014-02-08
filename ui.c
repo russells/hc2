@@ -4,6 +4,7 @@
 #include "serial.h"
 #include "lcd.h"
 #include "rtc.h"
+#include "buttons.h"
 #include "time.h"
 #include "titime.h"
 #include "recorder.h"
@@ -139,6 +140,7 @@ static QState scroll(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		SERIALSTR("scroll");
 		me->scrollstring = banner;
 		me->scrollindex = 0;
 		BSP_fast_timer_1(TRUE);
@@ -155,6 +157,11 @@ static QState scroll(struct UI *me)
 		return Q_TRAN(uiRun);
 	case Q_EXIT_SIG:
 		BSP_fast_timer_1(FALSE);
+		/* If we exit here on a button press, the buttons AO (or the
+		   Basic Timer 1 ISR) may see the button down immediately, with
+		   the result that the UI immediately enters the menu.  Avoid
+		   that by telling the buttons to wait. */
+		post(&buttons.super, BUTTONS_WAIT_SIGNAL, 0);
 		return Q_HANDLED();
 	}
 	return Q_SUPER(uiTop);

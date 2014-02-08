@@ -26,6 +26,8 @@ void buttons_ctor(void)
 {
 	QActive_ctor((QActive*)(&buttons), (QStateHandler)buttons_initial);
 
+	SERIALSTR("(b1)");
+
 	QHsm_ctor((QHsm*)(&(buttons.button1)), (QStateHandler)button_initial);
 	buttons.button1.press_signal = BUTTON_1_PRESS_SIGNAL;
 	buttons.button1.long_press_signal = BUTTON_1_LONG_PRESS_SIGNAL;
@@ -67,6 +69,9 @@ static QState buttons_initial(struct Buttons *me)
 static QState buttons_state(struct Buttons *me)
 {
 	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		SERIALSTR("(b2)");
+		return Q_HANDLED();
 	case BUTTONS_WAIT_SIGNAL:
 		return Q_TRAN(buttons_waiting);
 	case BUTTONS_SIGNAL:
