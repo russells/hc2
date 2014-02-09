@@ -117,6 +117,8 @@ static QState recGetTemperature(struct Recorder *me)
 		me->ti = get_calibrated_ti(ti, me->calibration);
 		save_max_and_min(me, me->ti);
 		SERIALSTR("(TI:");
+		serial_send_int(me->ti);
+		SERIALSTR(":");
 		serial_send_int(me->max_today.ti);
 		SERIALSTR(":");
 		serial_send_int(me->min_today.ti);
@@ -128,6 +130,7 @@ static QState recGetTemperature(struct Recorder *me)
 		post(&ui.super, CURRENT_TEMPERATURE_SIGNAL, (QParam) me->ti);
 		return Q_TRAN(waiting);
 	case Q_TIMEOUT1_SIG:
+		SERIALSTR("<X>");
 		return Q_TRAN(waiting);
 	}
 	return Q_SUPER(recTemperature);
