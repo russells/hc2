@@ -242,20 +242,71 @@ void BSP_led_off(void)
 #endif
 
 
+/**
+ * Tell the timer ISR to add or subtract an certain number of ticks.
+ *
+ * The ticks will normally equal zero or plus/minus an eighth of a second.
+ *
+ * This number is added to the ISR counter when it passes the middle of the
+ * count, to avoid any wrapping or over/underflow issues.
+ */
+static volatile int8_t counter_adjustment = 0;
+
+
+/**
+ * Advance the tick counter to make the second that much shorter.
+ *
+ * This speeds up (advances) the clock.
+ */
+void BSP_add_8th_second(void)
+{
+	Q_ASSERT( ! counter_adjustment );
+	__disable_interrupt();
+	counter_adjustment = 4;
+	__enable_interrupt();
+}
+
+
+/**
+ * Retard the tick counter to make the second that much longer.
+ *
+ * This slows down (retards) the clock.
+ */
+void BSP_sub_8th_second(void)
+{
+	Q_ASSERT( ! counter_adjustment );
+	__disable_interrupt();
+	counter_adjustment = -4;
+	__enable_interrupt();
+}
+
+
 static void
 __attribute__((__interrupt__(BASICTIMER_VECTOR)))
 isr_BASICTIMER(void)
 {
 	BSP_led_on();
 
-	static const uint8_t COUNT = 64; /** We interrupt at fCLK2/4 (ie
-					     32768/(256*4)==32) times per
-					     second.  We want a slow tick every
-					     two seconds, so divide the real
-					     tick rate by 64.  */
+	/** We interrupt at fCLK2/4 (ie 32768/(256*4)==32) times per second.
+	    We want a slow tick every two seconds, so divide the real tick rate
+	    by 64.  This const int is optimised away by the compiler. */
+	static const uint8_t COUNT = 64;
 	static volatile uint8_t counter = 0;
 
 	counter ++;
+	if ( ((COUNT/2) == counter) && counter_adjustment ) {
+		SERIALSTR("<b:");
+		serial_send_int(counter);
+		SERIALSTR(":");
+		serial_send_int(counter_adjustment);
+		SERIALSTR(":");
+
+		counter += counter_adjustment;
+		counter_adjustment = 0;
+
+		serial_send_int(counter);
+		SERIALSTR(">");
+	}
 	if (counter >= COUNT) {
 		counter = 0;
 	}

@@ -51,6 +51,13 @@ bsp-449STK2.c: bsp-MCP9701A-temperature-scale.inc
 bsp-MCP9701A-temperature-scale.inc bsp-MCP9701A-temperature-scale.h: bsp-MCP9701A-temperature-scale-creator.py
 	./$<
 
+rtc.c: rtc-add-sub.inc
+
+ui.c: ui-rtc-adj.inc
+
+rtc-add-sub.inc ui-rtc-adj.inc: rtc-table-creator.py
+	./$<
+
 .PHONY: flash
 flash: $(ELFPROGRAM)
 	mspdebug -j olimex "prog $(ELFPROGRAM)"
@@ -59,7 +66,8 @@ flash: $(ELFPROGRAM)
 clean:
 	rm -f $(ELFPROGRAM) $(OBJS) $(DEPS) \
 		bsp-*-temperature-scale.inc \
-		bsp-*-temperature-scale.h
+		bsp-*-temperature-scale.h \
+		rtc-add-sub.inc ui-rtc-adj.inc
 
 # Put this late so the first .o target does not become the default.
 ifneq ($(MAKECMDGOALS),clean)

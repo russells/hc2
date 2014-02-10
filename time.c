@@ -25,6 +25,7 @@ enum time_wrap tick_time(struct Time *time)
 	time->seconds += 2;
 	if (time->seconds >= 60) {
 		time->seconds = 0;
+		wrap = wrap_second;
 		if (inc_minute(time)) {
 			wrap = wrap_minute;
 			if (inc_hour(time)) {
@@ -38,12 +39,6 @@ enum time_wrap tick_time(struct Time *time)
 				}
 			}
 		}
-	}
-	if (wrap >= wrap_hour) {
-		/* We have wrapped the hours (at least - perhaps day and month
-		   as well), so apply the daily adjustment. */
-		int16_t adj = BSP_get_adjustment();
-		time->seconds -= (int8_t) adj;
 	}
 	return wrap;
 }

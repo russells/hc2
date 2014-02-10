@@ -252,6 +252,9 @@ void lcd_showchar(char ch, uint8_t pos)
 	case 'y': lb = H|K|P;           break;
 	case 'z': lb = D|G|Q;           break;
 	default:
+		SERIALSTR("?<");
+		serial_send_hex_int(ch);
+		SERIALSTR(">");
 		Q_ASSERT(0);
 		break;
 	}

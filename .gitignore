@@ -4,3 +4,5 @@ hc.elf
 tmp
 bsp-*-temperature-scale.h
 bsp-*-temperature-scale.inc
+rtc-add-sub.inc
+ui-rtc-adj.inc

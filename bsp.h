@@ -41,6 +41,8 @@ void BSP_save_adjustment(int16_t cal);
 #define BSP_delay_ms(ms) __delay_cycles(1000L*ms)
 #endif
 
+void BSP_add_8th_second(void);
+void BSP_sub_8th_second(void);
 
 #endif
 

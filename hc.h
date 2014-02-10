@@ -11,11 +11,12 @@
 /** The maximum value for temperature calibration. */
 #define MAX_CAL 9
 
-/** The minimum value for time adjustment. */
-#define MIN_ADJ -9
+/** The maximum value for time adjustment.  The value of 39 allows for +/- 9.75
+    seconds per day, at 0.25 second resolution. */
+#define MAX_ADJ 39
 
-/** The maximum value for time adjustment. */
-#define MAX_ADJ 9
+/** The minimum value for time adjustment.  @see MAX_ADJ */
+#define MIN_ADJ -39
 
 /** A value that specifies an invalid temperature. */
 #define INVALIDTI INT_MIN

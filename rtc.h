@@ -19,4 +19,6 @@ inline struct Time *gettimep(void) {
 	return &(rtc.time);
 }
 
+void set_rtc_time(const struct Time *time);
+
 #endif

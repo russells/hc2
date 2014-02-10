@@ -1094,7 +1094,7 @@ static QState uiMenuSettimeConfirmYes(struct UI *me)
 	case BUTTON_1_PRESS_SIGNAL:
 		ACTION();
 		me->settime.seconds = 0;
-		*gettimep() = me->settime;
+		set_rtc_time(&me->settime);
 		return Q_TRAN(uiMenuMaybeSettime);
 	case BUTTON_2_PRESS_SIGNAL:
 	case BUTTON_3_PRESS_SIGNAL:
@@ -1323,17 +1323,20 @@ static QState uiMenuCalibrateGetTemperature(struct UI *me)
 }
 
 
+#include "ui-rtc-adj.inc"
+
+
 static void display_adjusttime(struct UI *me)
 {
-	char s[8];
-	int slen;
+	int16_t adj = me->adjustment;
 
-	Q_ASSERT( me->adjustment <= 9 );
-	Q_ASSERT( me->adjustment >= -9 );
-	slen = snprintf(s, 8, "%2dS/DAY", me->adjustment);
-	Q_ASSERT( slen == 7 );
-	Q_ASSERT( ! s[7] );
-	lcd_showstring(s);
+	Q_ASSERT( adj <= MAX_ADJ );
+	Q_ASSERT( adj >= MIN_ADJ );
+	adj -= MIN_ADJ;
+	SERIALSTR("adjust:\"");
+	serial_send(adjuststrings[adj]);
+	SERIALSTR("\"");
+	lcd_showstring(adjuststrings[adj]);
 }
 
 static QState uiMenuAdjusttime(struct UI *me)

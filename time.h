@@ -20,6 +20,7 @@ struct Time {
 
 enum time_wrap {
 	wrap_none = 0,
+	wrap_second,
 	wrap_minute,
 	wrap_hour,
 	wrap_day,
