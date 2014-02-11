@@ -67,7 +67,8 @@ Element ["" "Keystone 1020 SMT AAA Holder" "B?" "" 10 10 -5000 -20000 0 100 ""] 
         Pad [ 214600 0 219600 0 22000 4000 23000 "2" "2" "square" ]
 
         # Alignment hole.
-        Pin [ 12500 -20900 12000 1000 13000 8000 "" "" "" ]
+	### Removed for hc2 v1.1.
+        ## Pin [ 12500 -20900 12000 1000 13000 8000 "" "" "" ]
 
         # "+" marker
         ElementLine [     0 12000     0 22000 1000 ]
