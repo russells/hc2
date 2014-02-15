@@ -165,41 +165,51 @@ void BSP_init(void)
 	CB(P1DIR, BIT2);
 	CB(P1DIR, BIT3);
 
-	/* A pin for monitoring on time. */
-	P2DIR |= BIT0;
+	/* Set the direction and output bits appropriately for an unused port
+	   pin. */
+#define UNUSED(port_,bit_)				\
+	do {						\
+		/* Set to output. */			\
+		SB( P ## port_ ## DIR, BIT ## bit_ );	\
+		/* Set output low. */			\
+		CB( P ## port_ ## OUT, BIT ## bit_ );	\
+	} while (0)
 
-	/* Make all the unused pins output zero */
-	SB(P1DIR, BIT4); CB(P1DIR, BIT4);
-	SB(P1DIR, BIT5); CB(P1DIR, BIT5);
-	SB(P1DIR, BIT6); CB(P1DIR, BIT6);
-	SB(P1DIR, BIT7); CB(P1DIR, BIT7);
+	/* Make all the unused pins output zero.  We could set all the bits in
+	   each port at once, but this only happens once and doesn't take that
+	   long, so it's not an efficiency concern.  Separating them out like
+	   this allows us to easily change one pin if it's needed later. */
+	UNUSED(1,4);
+	UNUSED(1,5);
+	UNUSED(1,6);
+	UNUSED(1,7);
 
-	SB(P2DIR, BIT0); CB(P2DIR, BIT0);
-	SB(P2DIR, BIT1); CB(P2DIR, BIT1);
-	SB(P2DIR, BIT2); CB(P2DIR, BIT2);
-	SB(P2DIR, BIT3); CB(P2DIR, BIT3);
-	SB(P2DIR, BIT4); CB(P2DIR, BIT4);
-	SB(P2DIR, BIT5); CB(P2DIR, BIT5);
-	SB(P2DIR, BIT6); CB(P2DIR, BIT6);
-	SB(P2DIR, BIT7); CB(P2DIR, BIT7);
+	UNUSED(2,0);
+	UNUSED(2,1);
+	UNUSED(2,2);
+	UNUSED(2,3);
+	UNUSED(2,4);
+	UNUSED(2,5);
+	UNUSED(2,6);
+	UNUSED(2,7);
 
-	SB(P3DIR, BIT0); CB(P3DIR, BIT0);
-	SB(P3DIR, BIT1); CB(P3DIR, BIT1);
-	SB(P3DIR, BIT2); CB(P3DIR, BIT2);
-	SB(P3DIR, BIT3); CB(P3DIR, BIT3);
-	SB(P3DIR, BIT4); CB(P3DIR, BIT4);
-	SB(P3DIR, BIT5); CB(P3DIR, BIT5);
-	SB(P3DIR, BIT6); CB(P3DIR, BIT6);
-	SB(P3DIR, BIT7); CB(P3DIR, BIT7);
+	UNUSED(3,0);
+	UNUSED(3,1);
+	UNUSED(3,2);
+	UNUSED(3,3);
+	UNUSED(3,4);
+	UNUSED(3,5);
+	UNUSED(3,6);
+	UNUSED(3,7);
 
-	SB(P4DIR, BIT1); CB(P4DIR, BIT1);
+	UNUSED(4,1);
 
-	SB(P6DIR, BIT2); CB(P6DIR, BIT2);
-	SB(P6DIR, BIT3); CB(P6DIR, BIT3);
-	SB(P6DIR, BIT4); CB(P6DIR, BIT4);
-	SB(P6DIR, BIT5); CB(P6DIR, BIT5);
-	SB(P6DIR, BIT6); CB(P6DIR, BIT6);
-	SB(P6DIR, BIT7); CB(P6DIR, BIT7);
+	UNUSED(6,2);
+	UNUSED(6,3);
+	UNUSED(6,4);
+	UNUSED(6,5);
+	UNUSED(6,6);
+	UNUSED(6,7);
 }
 
 
@@ -213,7 +223,6 @@ void QF_onStartup(void)
 void QF_onIdle(void)
 {
 	BSP_led_off();
-	//P2OUT &= ~(BIT0);
 #ifdef SERIAL
 	/* If we're running the serial port (for debugging) don't stop SMCLK.
 	   SMCLK keeps running while the CPU is running, and we don't shutdown
@@ -489,7 +498,6 @@ isr_ADC12(void)
 	static int16_t previous_temperature = 0;
 
 	//Q_ASSERT(0); // yes
-	//P2OUT |= BIT0;
 
 	adc = ADC12MEM10;
 	SERIALSTR("<a:");
