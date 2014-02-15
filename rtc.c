@@ -67,6 +67,7 @@ static QState initial(struct RTC *me)
 //static int compare_timeonly(const struct TimeOnly *a, const struct TimeOnly *b)
 static int compare_timeonly(const void *a, const void *b)
 {
+	SERIALSTR(".");
 	return strncmp((const char *)a, (const char *)b, 4);
 }
 

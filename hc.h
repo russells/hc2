@@ -13,10 +13,10 @@
 
 /** The maximum value for time adjustment.  The value of 39 allows for +/- 9.75
     seconds per day, at 0.25 second resolution. */
-#define MAX_ADJ 39
+#define MAX_ADJ 80
 
 /** The minimum value for time adjustment.  @see MAX_ADJ */
-#define MIN_ADJ -39
+#define MIN_ADJ -80
 
 /** A value that specifies an invalid temperature. */
 #define INVALIDTI INT_MIN

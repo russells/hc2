@@ -2,7 +2,9 @@
 
 # Create rtc-add-sub.inc, containing RTC calibration information.
 
-max_adj = 39
+import sys
+
+max_adj = 80
 
 inc_file_name = "rtc-add-sub.inc"
 ui_adj_file_name = "ui-rtc-adj.inc"
@@ -45,8 +47,8 @@ print >>ui_f, '''
 /**
  * Strings to display to indicate the time adjustment.
  *
- * We can adjust the time (clock speed) in 0.25 second increments, from -10 to
- * +10 seconds per day.  These strings indicate each step, and they must match
+ * We can adjust the time (clock speed) in 0.25 second increments, from -20 to
+ * +20 seconds per day.  These strings indicate each step, and they must match
  * the definitions of MIN_ADJ and MAX_ADJ.  The use of those sizes in the array
  * size helps here.
  *
@@ -55,7 +57,12 @@ print >>ui_f, '''
 '''
 print >>ui_f, "static const char *adjuststrings[1 + MAX_ADJ - MIN_ADJ] = {"
 for n in range(-max_adj, max_adj+1):
-    s = "%+4.2f" % (n * 0.25)
-    print >>ui_f, '"%c\\xb%c" "%c%c",' % (s[0], s[1], s[3], s[4])
+    s = "%+05.2f" % (n * 0.25)
+    if len(s) == 5:
+        # eg -20.00
+        print >>ui_f, '"%c0\\xb%c" "%c%c", /* "%s" */' % (s[0], s[1], s[3], s[4], s)
+    else:
+        # eg -9.75
+        print >>ui_f, '"%c%c\\xb%c" "%c%c", /* "%s" */' % (s[0], s[1], s[2], s[4], s[5], s)
 print >>ui_f, "};"
 ui_f.close()
