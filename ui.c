@@ -1095,6 +1095,7 @@ static QState uiMenuSettimeConfirmYes(struct UI *me)
 		ACTION();
 		me->settime.seconds = 0;
 		set_rtc_time(&me->settime);
+		BSP_restart_seconds();
 		return Q_TRAN(uiMenuMaybeSettime);
 	case BUTTON_2_PRESS_SIGNAL:
 	case BUTTON_3_PRESS_SIGNAL:

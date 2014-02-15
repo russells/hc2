@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include "truefalse.h"
 
 
 Q_DEFINE_THIS_MODULE("b");
@@ -290,6 +291,20 @@ void BSP_sub_8th_second(void)
 }
 
 
+static volatile uint8_t restart_seconds = FALSE;
+
+
+/**
+ * Make the seconds counter start from zero.
+ *
+ * This enables the user to set the time accurately.
+ */
+void BSP_restart_seconds(void)
+{
+	restart_seconds = TRUE;
+}
+
+
 static void
 __attribute__((__interrupt__(BASICTIMER_VECTOR)))
 isr_BASICTIMER(void)
@@ -301,6 +316,11 @@ isr_BASICTIMER(void)
 	    by 64.  This const int is optimised away by the compiler. */
 	static const uint8_t COUNT = 64;
 	static volatile uint8_t counter = 0;
+
+	if (restart_seconds) {
+		counter = 0;
+		restart_seconds = FALSE;
+	}
 
 	counter ++;
 	if ( ((COUNT/2) == counter) && counter_adjustment ) {
