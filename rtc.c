@@ -143,6 +143,12 @@ static QState counting(struct RTC *me)
 		QActive_post(&(ui.super), TIME_SIGNAL, (QParam)(&(me->time)));
 		QActive_armX((QActive*)me, 0, 1);
 		if (w) {
+			SERIALSTR("\r\nTIME=");
+			serial_send_char(me->time.ht);
+			serial_send_char(me->time.h1);
+			serial_send_char(me->time.mt);
+			serial_send_char(me->time.m1);
+			SERIALSTR("\r\n");
 			do_adjustment(me);
 		}
 		return Q_HANDLED();
