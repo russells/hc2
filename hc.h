@@ -11,7 +11,7 @@
 /** The maximum value for temperature calibration. */
 #define MAX_CAL 9
 
-/** The maximum value for time adjustment.  The value of 39 allows for +/- 9.75
+/** The maximum value for time adjustment.  The value of 80 allows for +/- 20
     seconds per day, at 0.25 second resolution. */
 #define MAX_ADJ 80
 
