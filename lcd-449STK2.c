@@ -351,6 +351,7 @@ static void lcd_showdigit(const char c, uint8_t pos)
 		case '7': lb = A89|B89|C89;                 break;
 		case '8': lb = A89|B89|C89|D89|E89|F89|G89; break;
 		case '9': lb = A89|B89|C89|D89|F89|G89;     break;
+		case ' ': lb = 0;                           break;
 		default:  lb = 0xff; Q_ASSERT( 0 );         break;
 		}
 	} else {
@@ -365,6 +366,7 @@ static void lcd_showdigit(const char c, uint8_t pos)
 		case '7': lb = A10|B10|C10;                 break;
 		case '8': lb = A10|B10|C10|D10|E10|F10|G10; break;
 		case '9': lb = A10|B10|C10|D10|F10|G10;     break;
+		case ' ': lb = 0;                           break;
 		default:  lb = 0xff; Q_ASSERT( 0 );         break;
 		}
 	}

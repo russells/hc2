@@ -449,6 +449,11 @@ static QState uiShowMaxOrMin(struct UI *me)
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		BSP_fast_timer_1(TRUE);
+		lcd_showdigits("    ");
+		return Q_HANDLED();
+	case TIME_SIGNAL:
+		/* Ignore time updates so we don't display anything on the time
+		   digits while we're displaying a max or min. */
 		return Q_HANDLED();
 	case Q_EXIT_SIG:
 		BSP_fast_timer_1(FALSE);
