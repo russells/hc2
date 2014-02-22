@@ -48,8 +48,6 @@ static QState uiMenuSettimeHours(struct UI *me);
 static QState uiMenuSettimeHoursFlash(struct UI *me);
 static QState uiMenuSettimeMinutes(struct UI *me);
 static QState uiMenuSettimeMinutesFlash(struct UI *me);
-static QState uiMenuSettimeConfirmYes(struct UI *me);
-static QState uiMenuSettimeConfirmNo(struct UI *me);
 
 static QState uiMenuMaybeCalibrate(struct UI *me);
 static QState uiMenuCalibratePause(struct UI *me);
@@ -58,8 +56,6 @@ static QState uiMenuCalibrateGetTemperature(struct UI *me);
 
 static QState uiMenuMaybeAdjusttime(struct UI *me);
 static QState uiMenuAdjusttime(struct UI *me);
-
-static QState uiMenuMaybeExit(struct UI *me);
 
 static void show_temperature(int16_t t);
 static void show_temperature_cal(struct UI *me);
@@ -131,6 +127,8 @@ static QState uiTop(struct UI *me)
 		   finished. */
 		me->ti = (int16_t) Q_PAR(me);
 		return Q_HANDLED();
+	case BUTTON_CANCEL_PRESS_SIGNAL:
+		return Q_TRAN(uiRun);
 	}
 	return Q_SUPER(QHsm_top);
 }
@@ -145,15 +143,18 @@ static QState scroll(struct UI *me)
 		me->scrollindex = 0;
 		BSP_fast_timer_1(TRUE);
 		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
-	case BUTTON_1_LONG_PRESS_SIGNAL:
-	case BUTTON_1_REPEAT_SIGNAL:
-	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_2_LONG_PRESS_SIGNAL:
-	case BUTTON_2_REPEAT_SIGNAL:
-	case BUTTON_3_PRESS_SIGNAL:
-	case BUTTON_3_LONG_PRESS_SIGNAL:
-	case BUTTON_3_REPEAT_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
+	case BUTTON_ENTER_LONG_PRESS_SIGNAL:
+	case BUTTON_ENTER_REPEAT_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
+	case BUTTON_UP_LONG_PRESS_SIGNAL:
+	case BUTTON_UP_REPEAT_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
+	case BUTTON_DOWN_LONG_PRESS_SIGNAL:
+	case BUTTON_DOWN_REPEAT_SIGNAL:
+	case BUTTON_CANCEL_PRESS_SIGNAL:
+	case BUTTON_CANCEL_LONG_PRESS_SIGNAL:
+	case BUTTON_CANCEL_REPEAT_SIGNAL:
 		return Q_TRAN(uiRun);
 	case Q_EXIT_SIG:
 		BSP_fast_timer_1(FALSE);
@@ -195,11 +196,11 @@ static QState uiRun(struct UI *me)
 	case Q_ENTRY_SIG:
 		show_temperature(me->ti);
 		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
 		return Q_TRAN(uiMenuMaybeSettime);
-	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
 		return Q_TRAN(uiShowMax);
-	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
 		return Q_TRAN(uiShowMin);
 	case CURRENT_TEMPERATURE_SIGNAL:
 		me->ti = (int16_t) Q_PAR(me);
@@ -455,6 +456,8 @@ static QState uiShowMaxOrMin(struct UI *me)
 		/* Ignore time updates so we don't display anything on the time
 		   digits while we're displaying a max or min. */
 		return Q_HANDLED();
+	case BUTTON_CANCEL_PRESS_SIGNAL:
+		return Q_TRAN(uiRun);
 	case Q_EXIT_SIG:
 		BSP_fast_timer_1(FALSE);
 		return Q_HANDLED();
@@ -472,7 +475,7 @@ static QState uiShowMaxTop(struct UI *me)
 	case Q_ENTRY_SIG:
 		me->showmaxmincounter = 0;
 		return Q_HANDLED();
-	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
 		return Q_TRAN(uiShowMin);
 	}
 	return Q_SUPER(uiShowMaxOrMin);
@@ -541,7 +544,7 @@ static QState uiShowMax(struct UI *me)
 		QActive_armX(&me->super, 1, timeout);
 		return Q_HANDLED();
 	case Q_TIMEOUT1_SIG:
-	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
 		// This number must match the highest number above.
 		if (10 == me->showmaxmincounter)
 			return Q_TRAN(uiRun);
@@ -558,7 +561,7 @@ static QState uiShowMinTop(struct UI *me)
 	case Q_ENTRY_SIG:
 		me->showmaxmincounter = 0;
 		return Q_HANDLED();
-	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
 		return Q_TRAN(uiShowMax);
 	}
 	return Q_SUPER(uiShowMaxOrMin);
@@ -627,7 +630,7 @@ static QState uiShowMin(struct UI *me)
 		QActive_armX(&me->super, 1, timeout);
 		return Q_HANDLED();
 	case Q_TIMEOUT1_SIG:
-	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
 		if (10 == me->showmaxmincounter)
 			return Q_TRAN(uiRun);
 		else
@@ -668,6 +671,8 @@ static QState uiMenu(struct UI *me)
 		} else {
 			return Q_TRAN(uiRun);
 		}
+	case BUTTON_CANCEL_PRESS_SIGNAL:
+		return Q_TRAN(uiRun);
 	case Q_EXIT_SIG:
 		BSP_fast_timer_1(FALSE);
 		BSP_fast_timer_2(FALSE);
@@ -692,16 +697,16 @@ static QState uiMenuMaybeSettime(struct UI *me)
 	case Q_ENTRY_SIG:
 		lcd_showstring("SETTIME");
 		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
 		me->settime = *gettimep();
 		return Q_TRAN(uiMenuSettimeYears);
-	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeCalibrate);
-	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeExit);
+		return Q_TRAN(uiMenuMaybeAdjusttime);
 	}
 	return Q_SUPER(uiMenu);
 }
@@ -713,13 +718,13 @@ static QState uiMenuMaybeCalibrate(struct UI *me)
 	case Q_ENTRY_SIG:
 		lcd_showstring("CALTEMP");
 		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuCalibrateTemperature);
-	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeAdjusttime);
-	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeSettime);
 	}
@@ -733,35 +738,15 @@ static QState uiMenuMaybeAdjusttime(struct UI *me)
 	case Q_ENTRY_SIG:
 		lcd_showstring("ADJTIME");
 		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuAdjusttime);
-	case BUTTON_2_PRESS_SIGNAL:
-		ACTION();
-		return Q_TRAN(uiMenuMaybeExit);
-	case BUTTON_3_PRESS_SIGNAL:
-		ACTION();
-		return Q_TRAN(uiMenuMaybeCalibrate);
-	}
-	return Q_SUPER(uiMenu);
-}
-
-
-static QState uiMenuMaybeExit(struct UI *me)
-{
-	switch (Q_SIG(me)) {
-	case Q_ENTRY_SIG:
-		lcd_showstring("EXIT   ");
-		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
-		ACTION();
-		return Q_TRAN(uiRun);
-	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeSettime);
-	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeAdjusttime);
+		return Q_TRAN(uiMenuMaybeCalibrate);
 	}
 	return Q_SUPER(uiMenu);
 }
@@ -775,8 +760,6 @@ static void display_set_month(struct UI *me, uint8_t on);
 static void display_set_day(struct UI *me, uint8_t on);
 static void display_set_time(struct UI *me,
 			     uint8_t show_hours, uint8_t show_minutes);
-static void display_set_time_confirm(struct UI *me, char yn);
-
 static inline void display_set_hour(struct UI *me, uint8_t on) {
 	display_set_time(me, on, TRUE);
 }
@@ -855,20 +838,20 @@ static inline void dec_settime_day(struct UI *me) {
 			return Q_HANDLED();				\
 		case Q_TIMEOUT1_SIG:					\
 		return Q_TRAN(flash_);					\
-		case BUTTON_1_PRESS_SIGNAL:				\
+		case BUTTON_ENTER_PRESS_SIGNAL:				\
 			ACTION();					\
 			return Q_TRAN(next_);				\
-		case BUTTON_2_PRESS_SIGNAL:				\
-		case BUTTON_2_LONG_PRESS_SIGNAL:			\
-		case BUTTON_2_REPEAT_SIGNAL:				\
+		case BUTTON_UP_PRESS_SIGNAL:				\
+		case BUTTON_UP_LONG_PRESS_SIGNAL:			\
+		case BUTTON_UP_REPEAT_SIGNAL:				\
 			ACTION();					\
 			inc_(me);					\
 			display_(me, TRUE);				\
 			QActive_armX((QActive*)me, 1, 17);		\
 			return Q_HANDLED();				\
-		case BUTTON_3_PRESS_SIGNAL:				\
-		case BUTTON_3_LONG_PRESS_SIGNAL:			\
-		case BUTTON_3_REPEAT_SIGNAL:				\
+		case BUTTON_DOWN_PRESS_SIGNAL:				\
+		case BUTTON_DOWN_LONG_PRESS_SIGNAL:			\
+		case BUTTON_DOWN_REPEAT_SIGNAL:				\
 			ACTION();					\
 			dec_(me);					\
 			display_(me, TRUE);				\
@@ -888,12 +871,12 @@ static inline void dec_settime_day(struct UI *me) {
 		case Q_TIMEOUT1_SIG:					\
 			display_(me, TRUE);				\
 			return Q_TRAN(name_);				\
-		case BUTTON_2_PRESS_SIGNAL:				\
-		case BUTTON_2_LONG_PRESS_SIGNAL:			\
-		case BUTTON_2_REPEAT_SIGNAL:				\
-		case BUTTON_3_PRESS_SIGNAL:				\
-		case BUTTON_3_LONG_PRESS_SIGNAL:			\
-		case BUTTON_3_REPEAT_SIGNAL:				\
+		case BUTTON_DOWN_PRESS_SIGNAL:				\
+		case BUTTON_DOWN_LONG_PRESS_SIGNAL:			\
+		case BUTTON_DOWN_REPEAT_SIGNAL:				\
+		case BUTTON_UP_PRESS_SIGNAL:				\
+		case BUTTON_UP_LONG_PRESS_SIGNAL:			\
+		case BUTTON_UP_REPEAT_SIGNAL:				\
 			display_(me, TRUE);				\
 			/* React to the event, but don't handle it. */	\
 			break;						\
@@ -978,20 +961,20 @@ static QState uiMenuSettimeHours(struct UI *me)
 		return Q_HANDLED();
 	case Q_TIMEOUT1_SIG:
 		return Q_TRAN(uiMenuSettimeHoursFlash);
-	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuSettimeMinutes);
-	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_2_LONG_PRESS_SIGNAL:
-	case BUTTON_2_REPEAT_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
+	case BUTTON_UP_LONG_PRESS_SIGNAL:
+	case BUTTON_UP_REPEAT_SIGNAL:
 		ACTION();
 		inc_hour(&me->settime);
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
-	case BUTTON_3_PRESS_SIGNAL:
-	case BUTTON_3_LONG_PRESS_SIGNAL:
-	case BUTTON_3_REPEAT_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
+	case BUTTON_DOWN_LONG_PRESS_SIGNAL:
+	case BUTTON_DOWN_REPEAT_SIGNAL:
 		ACTION();
 		dec_hour(&me->settime);
 		display_set_time(me, TRUE, TRUE);
@@ -1012,12 +995,12 @@ static QState uiMenuSettimeHoursFlash(struct UI *me)
 	case Q_TIMEOUT1_SIG:
 		display_set_time(me, TRUE, TRUE);
 		return Q_TRAN(uiMenuSettimeHours);
-	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_2_LONG_PRESS_SIGNAL:
-	case BUTTON_2_REPEAT_SIGNAL:
-	case BUTTON_3_PRESS_SIGNAL:
-	case BUTTON_3_LONG_PRESS_SIGNAL:
-	case BUTTON_3_REPEAT_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
+	case BUTTON_UP_LONG_PRESS_SIGNAL:
+	case BUTTON_UP_REPEAT_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
+	case BUTTON_DOWN_LONG_PRESS_SIGNAL:
+	case BUTTON_DOWN_REPEAT_SIGNAL:
 		display_set_time(me, TRUE, TRUE);
 		/* React to the event, but don't handle it. */
 		break;
@@ -1039,20 +1022,22 @@ static QState uiMenuSettimeMinutes(struct UI *me)
 		return Q_HANDLED();
 	case Q_TIMEOUT1_SIG:
 		return Q_TRAN(uiMenuSettimeMinutesFlash);
-	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuSettimeConfirmYes);
-	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_2_LONG_PRESS_SIGNAL:
-	case BUTTON_2_REPEAT_SIGNAL:
+		me->settime.seconds = 0;
+		set_rtc_time(&me->settime);
+		return Q_TRAN(uiMenuMaybeSettime);
+	case BUTTON_UP_PRESS_SIGNAL:
+	case BUTTON_UP_LONG_PRESS_SIGNAL:
+	case BUTTON_UP_REPEAT_SIGNAL:
 		ACTION();
 		inc_minute(&me->settime);
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
 		return Q_HANDLED();
-	case BUTTON_3_PRESS_SIGNAL:
-	case BUTTON_3_LONG_PRESS_SIGNAL:
-	case BUTTON_3_REPEAT_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
+	case BUTTON_DOWN_LONG_PRESS_SIGNAL:
+	case BUTTON_DOWN_REPEAT_SIGNAL:
 		ACTION();
 		dec_minute(&me->settime);
 		display_set_time(me, TRUE, TRUE);
@@ -1073,12 +1058,12 @@ static QState uiMenuSettimeMinutesFlash(struct UI *me)
 	case Q_TIMEOUT1_SIG:
 		display_set_time(me, TRUE, TRUE);
 		return Q_TRAN(uiMenuSettimeMinutes);
-	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_2_LONG_PRESS_SIGNAL:
-	case BUTTON_2_REPEAT_SIGNAL:
-	case BUTTON_3_PRESS_SIGNAL:
-	case BUTTON_3_LONG_PRESS_SIGNAL:
-	case BUTTON_3_REPEAT_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
+	case BUTTON_UP_LONG_PRESS_SIGNAL:
+	case BUTTON_UP_REPEAT_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
+	case BUTTON_DOWN_LONG_PRESS_SIGNAL:
+	case BUTTON_DOWN_REPEAT_SIGNAL:
 		display_set_time(me, TRUE, TRUE);
 		/* React to the event, but don't handle it. */
 		break;
@@ -1087,47 +1072,6 @@ static QState uiMenuSettimeMinutesFlash(struct UI *me)
 		return Q_HANDLED();
 	}
 	return Q_SUPER(uiMenuSettimeMinutes);
-}
-
-
-static QState uiMenuSettimeConfirmYes(struct UI *me)
-{
-	switch (Q_SIG(me)) {
-	case Q_ENTRY_SIG:
-		display_set_time_confirm(me, 'Y');
-		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
-		ACTION();
-		me->settime.seconds = 0;
-		set_rtc_time(&me->settime);
-		BSP_restart_seconds();
-		return Q_TRAN(uiMenuMaybeSettime);
-	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_3_PRESS_SIGNAL:
-		ACTION();
-		return Q_TRAN(uiMenuSettimeConfirmNo);
-		return Q_HANDLED();
-	}
-	return Q_SUPER(uiMenu);
-}
-
-
-static QState uiMenuSettimeConfirmNo(struct UI *me)
-{
-	switch (Q_SIG(me)) {
-	case Q_ENTRY_SIG:
-		display_set_time_confirm(me, 'N');
-		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
-		ACTION();
-		return Q_TRAN(uiMenuMaybeSettime);
-	case BUTTON_2_PRESS_SIGNAL:
-	case BUTTON_3_PRESS_SIGNAL:
-		ACTION();
-		return Q_TRAN(uiMenuSettimeConfirmYes);
-		return Q_HANDLED();
-	}
-	return Q_SUPER(uiMenu);
 }
 
 
@@ -1222,34 +1166,18 @@ static void display_set_time(struct UI *me,
 }
 
 
-static void display_set_time_confirm(struct UI *me, char yn)
-{
-	char disp[8];
-
-	disp[0] = me->settime.ht;
-	disp[1] = me->settime.h1;
-	disp[2] = me->settime.mt;
-	disp[3] = me->settime.m1;
-	disp[4] = ' ';
-	disp[5] = ' ';
-	disp[6] = yn;
-	disp[7] = '\0';
-	lcd_showstring(disp);
-}
-
-
 // ----- UI Menu Calibrate -----
 
 
 static QState uiMenuCalibrate(struct UI *me)
 {
 	switch (Q_SIG(me)) {
-	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
 		SERIALSTR("b1\r\n");
 		set_calibration(me->cal);
 		return Q_TRAN(uiMenuMaybeCalibrate);
-	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
 		if (me->cal < MAX_CAL) {
 			SERIALSTR("up\r\n");
@@ -1257,7 +1185,7 @@ static QState uiMenuCalibrate(struct UI *me)
 			show_temperature_cal(me);
 		}
 		return Q_HANDLED();
-	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
 		if (me->cal > MIN_CAL) {
 			SERIALSTR("down\r\n");
@@ -1353,12 +1281,12 @@ static QState uiMenuAdjusttime(struct UI *me)
 		me->adjustment = BSP_get_adjustment();
 		display_adjusttime(me);
 		return Q_HANDLED();
-	case BUTTON_1_PRESS_SIGNAL:
+	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
 		SERIALSTR("b1\r\n");
 		BSP_save_adjustment(me->adjustment);
 		return Q_TRAN(uiMenuMaybeAdjusttime);
-	case BUTTON_2_PRESS_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
 		if (me->adjustment < MAX_ADJ) {
 			SERIALSTR("up\r\n");
@@ -1366,7 +1294,7 @@ static QState uiMenuAdjusttime(struct UI *me)
 			display_adjusttime(me);
 		}
 		return Q_HANDLED();
-	case BUTTON_3_PRESS_SIGNAL:
+	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
 		if (me->adjustment > MIN_ADJ) {
 			SERIALSTR("down\r\n");

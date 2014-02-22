@@ -20,6 +20,7 @@ struct Buttons {
 	struct Button button1;
 	struct Button button2;
 	struct Button button3;
+	struct Button button4;
 };
 
 

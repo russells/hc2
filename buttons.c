@@ -49,6 +49,13 @@ void buttons_ctor(void)
 	buttons.button3.release_signal = BUTTON_3_RELEASE_SIGNAL;
 	QHsm_init((QHsm*)(&(buttons.button3)));
 
+	QHsm_ctor((QHsm*)(&(buttons.button4)), (QStateHandler)button_initial);
+	buttons.button4.press_signal = BUTTON_4_PRESS_SIGNAL;
+	buttons.button4.long_press_signal = BUTTON_4_LONG_PRESS_SIGNAL;
+	buttons.button4.repeat_signal = BUTTON_4_REPEAT_SIGNAL;
+	buttons.button4.release_signal = BUTTON_4_RELEASE_SIGNAL;
+	QHsm_init((QHsm*)(&(buttons.button4)));
+
 }
 
 
@@ -75,20 +82,25 @@ static QState buttons_state(struct Buttons *me)
 	case BUTTONS_WAIT_SIGNAL:
 		return Q_TRAN(buttons_waiting);
 	case BUTTONS_SIGNAL:
-		if ((uint16_t)(Q_PAR(me)) & 0x1) {
+		if ((uint16_t)(Q_PAR(me)) & 0b0001) {
 			DS(button1, BUTTON_PRESSED_SIGNAL);
 		} else {
 			DS(button1, BUTTON_RELEASED_SIGNAL);
 		}
-		if ((uint16_t)(Q_PAR(me)) & 0x2) {
+		if ((uint16_t)(Q_PAR(me)) & 0b0010) {
 			DS(button2, BUTTON_PRESSED_SIGNAL);
 		} else {
 			DS(button2, BUTTON_RELEASED_SIGNAL);
 		}
-		if ((uint16_t)(Q_PAR(me)) & 0x4) {
+		if ((uint16_t)(Q_PAR(me)) & 0b0100) {
 			DS(button3, BUTTON_PRESSED_SIGNAL);
 		} else {
 			DS(button3, BUTTON_RELEASED_SIGNAL);
+		}
+		if ((uint16_t)(Q_PAR(me)) & 0b1000) {
+			DS(button4, BUTTON_PRESSED_SIGNAL);
+		} else {
+			DS(button4, BUTTON_RELEASED_SIGNAL);
 		}
 		return Q_HANDLED();
 	}

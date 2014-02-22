@@ -158,10 +158,9 @@ void BSP_init(void)
 	__delay_cycles(1000000L);
 #endif
 
-	/* Buttons are on P1.0 to P1.3, but P1.0 is used as a LED output for
-	   the moment. */
+	/* Buttons are on P1.0 to P1.3. */
 	/* Input */
-	//CB(P1DIR, BIT0);
+	CB(P1DIR, BIT0);
 	CB(P1DIR, BIT1);
 	CB(P1DIR, BIT2);
 	CB(P1DIR, BIT3);
@@ -291,6 +290,18 @@ void BSP_sub_8th_second(void)
 }
 
 
+static inline uint8_t BSP_button_1(void) { return ! (P1IN & BIT0); }
+
+
+static inline uint8_t BSP_button_2(void) { return ! (P1IN & BIT1); }
+
+
+static inline uint8_t BSP_button_3(void) { return ! (P1IN & BIT2); }
+
+
+static inline uint8_t BSP_button_4(void) { return ! (P1IN & BIT3); }
+
+
 static volatile uint8_t restart_seconds = FALSE;
 
 
@@ -343,9 +354,12 @@ isr_BASICTIMER(void)
 	uint8_t b1 = BSP_button_1();
 	uint8_t b2 = BSP_button_2();
 	uint8_t b3 = BSP_button_3();
+	uint8_t b4 = BSP_button_4();
 
 	if ( ! (fast_timer_1 || fast_timer_2) ) {
-		/* Neither fast timer is on, so check the buttons here. */
+		/* Neither fast timer is on, so check the buttons here.  We
+		   check buttons 2, 3, and 4.  Button 1 is the cancel button,
+		   which is pointless to check in this state. */
 		if (b1) {
 			SERIALSTR("\\\\1");
 			postISR(&ui.super, BUTTON_1_PRESS_SIGNAL, 0);
@@ -355,8 +369,11 @@ isr_BASICTIMER(void)
 		} else if (b3) {
 			SERIALSTR("\\\\3");
 			postISR(&ui.super, BUTTON_3_PRESS_SIGNAL, 0);
+		} else if (b4) {
+			SERIALSTR("\\\\4");
+			postISR(&ui.super, BUTTON_4_PRESS_SIGNAL, 0);
 		}
-		if (b1 || b2 || b3) {
+		if (b2 || b3 || b4) {
 			/* The buttons event will start the fast timer, so tell
 			   the buttons state machine to wait for idle buttons
 			   before proceeding. */
@@ -370,6 +387,7 @@ isr_BASICTIMER(void)
 		if (b1) buttonmask |= 0b0001;
 		if (b2) buttonmask |= 0b0010;
 		if (b3) buttonmask |= 0b0100;
+		if (b4) buttonmask |= 0b1000;
  		postISR(&buttons.super, BUTTONS_SIGNAL, buttonmask);
 	}
 
@@ -422,24 +440,6 @@ void BSP_do_reset(void)
 	while (1) {
 		__delay_cycles(0xbedead);
 	}
-}
-
-
-uint8_t BSP_button_1(void)
-{
-	return ! (P1IN & BIT3);
-}
-
-
-uint8_t BSP_button_2(void)
-{
-	return ! (P1IN & BIT2);
-}
-
-
-uint8_t BSP_button_3(void)
-{
-	return ! (P1IN & BIT1);
 }
 
 
