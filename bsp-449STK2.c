@@ -33,6 +33,11 @@ Q_DEFINE_THIS_MODULE("b");
 #define TEMPERATURE_SEL P6SEL
 #define TEMPERATURE_BIT BIT1
 
+#define LED_OUT P2OUT
+#define LED_DIR P2DIR
+#define LED_SEL P2SEL
+#define LED_BIT BIT4
+
 /** Select the temperature analogue input channel. */
 #define TEMPERATURE_INCH 0b0001
 
@@ -149,7 +154,8 @@ void BSP_init(void)
 	temperature_input_init();
 
 #ifdef LED
-	P1DIR = BIT3;		/* LED output */
+	SB(LED_DIR, LED_BIT);
+	BSP_led_off();
 
 	/* Wait at start so we can see resets. */
 	BSP_led_on();
@@ -188,7 +194,7 @@ void BSP_init(void)
 	UNUSED(2,1);
 	UNUSED(2,2);
 	UNUSED(2,3);
-	UNUSED(2,4);
+	//UNUSED(2,4); // LED
 	UNUSED(2,5);
 	UNUSED(2,6);
 	UNUSED(2,7);
@@ -235,18 +241,25 @@ void QF_onIdle(void)
 
 
 #ifdef LED
+/**
+ * Turn on the monitoring LED.
+ *
+ * The LED is also used for morse code assertions.
+ */
 void BSP_led_on(void)
 {
-	// Make the line input, so the pullup works.
-	CB(P1DIR, BIT3);
+	SB(LED_OUT, LED_BIT);
 }
 
 
+/**
+ * Turn off the monitoring LED.
+ *
+ * @see BSP_led_on()
+ */
 void BSP_led_off(void)
 {
-	// Make the line output and pull it down.
-	SB(P1DIR, BIT3);
-	CB(P1OUT, BIT3);
+	CB(LED_OUT, LED_BIT);
 }
 #endif
 
@@ -517,7 +530,7 @@ isr_ADC12(void)
 	static uint16_t previous_adc = 0x0002;
 	static int16_t previous_temperature = 0;
 
-	//Q_ASSERT(0); // yes
+	BSP_led_on();
 
 	adc = ADC12MEM10;
 	SERIALSTR("<a:");
