@@ -26,6 +26,8 @@ void buttons_ctor(void)
 {
 	QActive_ctor((QActive*)(&buttons), (QStateHandler)buttons_initial);
 
+	buttons.up_counter = 0;
+
 	SERIALSTR("(b1)");
 
 	QHsm_ctor((QHsm*)(&(buttons.button1)), (QStateHandler)button_initial);
@@ -116,12 +118,19 @@ static QState buttons_waiting(struct Buttons *me)
 		DS(button1, BUTTON_RELEASED_SIGNAL);
 		DS(button2, BUTTON_RELEASED_SIGNAL);
 		DS(button3, BUTTON_RELEASED_SIGNAL);
+		me->up_counter = 3;
 		return Q_HANDLED();
 	case BUTTONS_SIGNAL:
 		if ((uint16_t)(Q_PAR(me)) == 0) {
-			SERIALSTR("@");
-			return Q_TRAN(buttons_state);
+			me->up_counter --;
+			if (me->up_counter) {
+				return Q_HANDLED();
+			} else {
+				SERIALSTR("@");
+				return Q_TRAN(buttons_state);
+			}
 		} else {
+			me->up_counter = 3;
 			return Q_HANDLED();
 		}
 	case Q_EXIT_SIG:

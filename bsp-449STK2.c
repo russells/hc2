@@ -341,6 +341,13 @@ isr_BASICTIMER(void)
 	static const uint8_t COUNT = 64;
 	static volatile uint8_t counter = 0;
 
+	/* Wait for this many ticks with all buttons up before reacting to
+	   buttons. */
+	static const uint8_t BUTTONS_COUNTER_MAX = 5;
+
+	/* The current number of ticks to wait for all buttons up. */
+	static volatile uint8_t buttons_counter = BUTTONS_COUNTER_MAX;
+
 	if (restart_seconds) {
 		counter = 0;
 		restart_seconds = FALSE;
@@ -370,27 +377,44 @@ isr_BASICTIMER(void)
 	uint8_t b4 = BSP_button_4();
 
 	if ( ! (fast_timer_1 || fast_timer_2) ) {
-		/* Neither fast timer is on, so check the buttons here.  We
-		   check buttons 2, 3, and 4.  Button 1 is the cancel button,
-		   which is pointless to check in this state. */
-		if (b1) {
-			SERIALSTR("\\\\1");
-			postISR(&ui.super, BUTTON_1_PRESS_SIGNAL, 0);
-		} else if (b2) {
-			SERIALSTR("\\\\2");
-			postISR(&ui.super, BUTTON_2_PRESS_SIGNAL, 0);
-		} else if (b3) {
-			SERIALSTR("\\\\3");
-			postISR(&ui.super, BUTTON_3_PRESS_SIGNAL, 0);
-		} else if (b4) {
-			SERIALSTR("\\\\4");
-			postISR(&ui.super, BUTTON_4_PRESS_SIGNAL, 0);
+
+		/* Neither fast timer is on, so check the buttons here. */
+
+		if (buttons_counter) {
+			/* We're waiting for all the buttons to be up for this
+			   number of ISRs, since the fast timers have just been
+			   turned off. */
+			if ( ! (b1 || b2 || b3 || b4) ) {
+				buttons_counter --;
+			} else {
+				/* While waiting, we saw a button down, so
+				   start the count again. */
+				buttons_counter = BUTTONS_COUNTER_MAX;
+			}
 		}
-		if (b2 || b3 || b4) {
-			/* The buttons event will start the fast timer, so tell
-			   the buttons state machine to wait for idle buttons
-			   before proceeding. */
-			postISR(&buttons.super, BUTTONS_WAIT_SIGNAL, 0);
+		else {
+			/* Neither fast timer is on, so check the buttons here.  We
+			   check buttons 2, 3, and 4.  Button 1 is the cancel button,
+			   which is pointless to check in this state. */
+			if (b1) {
+				SERIALSTR("\\\\1");
+				postISR(&ui.super, BUTTON_1_PRESS_SIGNAL, 0);
+			} else if (b2) {
+				SERIALSTR("\\\\2");
+				postISR(&ui.super, BUTTON_2_PRESS_SIGNAL, 0);
+			} else if (b3) {
+				SERIALSTR("\\\\3");
+				postISR(&ui.super, BUTTON_3_PRESS_SIGNAL, 0);
+			} else if (b4) {
+				SERIALSTR("\\\\4");
+				postISR(&ui.super, BUTTON_4_PRESS_SIGNAL, 0);
+			}
+			if (b1 || b2 || b3 || b4) {
+				/* The buttons event will start the fast timer, so tell
+				   the buttons state machine to wait for idle buttons
+				   before proceeding. */
+				postISR(&buttons.super, BUTTONS_WAIT_SIGNAL, 0);
+			}
 		}
 	}
 	else {
@@ -402,6 +426,8 @@ isr_BASICTIMER(void)
 		if (b3) buttonmask |= 0b0100;
 		if (b4) buttonmask |= 0b1000;
  		postISR(&buttons.super, BUTTONS_SIGNAL, buttonmask);
+
+		buttons_counter = BUTTONS_COUNTER_MAX;
 	}
 
 	if (fast_timer_1) {

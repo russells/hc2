@@ -21,6 +21,7 @@ struct Buttons {
 	struct Button button2;
 	struct Button button3;
 	struct Button button4;
+	uint8_t up_counter;
 };
 
 
