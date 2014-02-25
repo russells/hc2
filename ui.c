@@ -451,6 +451,7 @@ static QState uiShowMaxOrMin(struct UI *me)
 	case Q_ENTRY_SIG:
 		BSP_fast_timer_1(TRUE);
 		lcd_showdigits("    ");
+		lcd_colon(0);
 		return Q_HANDLED();
 	case TIME_SIGNAL:
 		/* Ignore time updates so we don't display anything on the time
