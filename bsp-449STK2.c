@@ -137,9 +137,17 @@ static void temperature_input_init(void)
 
 void BSP_init(void)
 {
+	uint8_t fll_ctl0;
+
 	WDTCTL = WDTPW | WDTHOLD; /* Stop the watchdog */
 
 	FLL_CTL0 &= ~XTS_FLL;	/* XT1 as low-frequency */
+	/* Turn on the internal oscillator capacitors.  XCAP18PF is both the
+	   XCAPxPF bits on, so use that as a mask for the required bits. */
+	fll_ctl0 = FLL_CTL0;
+	fll_ctl0 &= ~XCAP18PF;
+	fll_ctl0 |= XCAP14PF;
+	FLL_CTL0 = fll_ctl0;
 	_BIC_SR(OSCOFF);	/* turn on XT1 oscillator */
 
 	do {			/* wait in loop until crystal is stable */
