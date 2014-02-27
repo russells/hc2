@@ -22,6 +22,7 @@ my $cal_minute;
 my $first_date;
 my $first_diff;
 
+$| = 1;
 
 while (<>) {
 
