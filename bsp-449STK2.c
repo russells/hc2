@@ -146,7 +146,7 @@ void BSP_init(void)
 	   XCAPxPF bits on, so use that as a mask for the required bits. */
 	fll_ctl0 = FLL_CTL0;
 	fll_ctl0 &= ~XCAP18PF;
-	fll_ctl0 |= XCAP14PF;
+	fll_ctl0 |= XCAP18PF;
 	FLL_CTL0 = fll_ctl0;
 	_BIC_SR(OSCOFF);	/* turn on XT1 oscillator */
 
