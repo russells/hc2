@@ -21,6 +21,9 @@ static uint8_t colon = 0;
 /** The number of timeout bars to display. */
 static uint8_t timeouts = 0;
 
+/** A bitmap of button indicators to display. */
+static uint8_t buttons = 0;
+
 
 static void display_timeouts(void)
 {
@@ -58,6 +61,14 @@ static void display_colon(void)
 }
 
 
+static void display_buttons(void)
+{
+	Q_ASSERT( ! (buttons & 0x0f) );
+	LCDM2 &= 0x0f;		/* Clear the arrow bits */
+	LCDM2 |= buttons;	/* Set the desired arrow bits. */
+}
+
+
 static void write_lcd_registers(void)
 {
 	volatile char *lcdm = LCDMEM;
@@ -67,6 +78,7 @@ static void write_lcd_registers(void)
 	}
 	display_colon();
 	display_timeouts();
+	display_buttons();
 }
 
 
@@ -413,4 +425,11 @@ void lcd_timeouts(uint8_t t)
 	Q_ASSERT( t < 5 );
 	timeouts = t;
 	write_lcd_registers();
+}
+
+
+void lcd_buttons(uint8_t b)
+{
+	Q_ASSERT( ! (b & 0x0f) );
+	buttons = b;
 }

@@ -194,6 +194,7 @@ static QState uiRun(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		lcd_buttons(LCD_BUTTONS_ENTER_UP_DOWN);
 		show_temperature(me->ti);
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
@@ -449,6 +450,7 @@ static QState uiShowMaxOrMin(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		lcd_buttons(LCD_BUTTON_CANCEL|LCD_BUTTON_UP|LCD_BUTTON_DOWN);
 		BSP_fast_timer_1(TRUE);
 		lcd_showdigits("    ");
 		lcd_colon(0);
@@ -696,6 +698,7 @@ static QState uiMenuMaybeSettime(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		lcd_buttons(LCD_BUTTONS_ALL);
 		lcd_showstring("SETTIME");
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
@@ -717,6 +720,7 @@ static QState uiMenuMaybeCalibrate(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		lcd_buttons(LCD_BUTTONS_ALL);
 		lcd_showstring("CALTEMP");
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
@@ -737,6 +741,7 @@ static QState uiMenuMaybeAdjusttime(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		lcd_buttons(LCD_BUTTONS_ALL);
 		lcd_showstring("ADJTIME");
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
@@ -830,6 +835,7 @@ static inline void dec_settime_day(struct UI *me) {
 	{								\
 		switch (Q_SIG(me)) {					\
 		case Q_ENTRY_SIG:					\
+			lcd_buttons(LCD_BUTTONS_ALL);			\
 			me->settime_YmdHM = displaych_;			\
 			/* Include code here to check the initial */	\
 			/* conditions for this time setting state. */	\
@@ -956,6 +962,7 @@ static QState uiMenuSettimeHours(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		lcd_buttons(LCD_BUTTONS_ALL);
 		me->settime_YmdHM = 'H';
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
@@ -1017,6 +1024,7 @@ static QState uiMenuSettimeMinutes(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		lcd_buttons(LCD_BUTTONS_ALL);
 		me->settime_YmdHM = 'M';
 		display_set_time(me, TRUE, TRUE);
 		QActive_armX((QActive*)me, 1, 17);
@@ -1173,6 +1181,15 @@ static void display_set_time(struct UI *me,
 static QState uiMenuCalibrate(struct UI *me)
 {
 	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		if (me->cal >= MAX_CAL) {
+			lcd_buttons(LCD_BUTTONS_ENTER_DOWN_CANCEL);
+		} else if (me->cal <= MIN_CAL) {
+			lcd_buttons(LCD_BUTTONS_ENTER_UP_CANCEL);
+		} else {
+			lcd_buttons(LCD_BUTTONS_ALL);
+		}
+		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
 		SERIALSTR("b1\r\n");
@@ -1182,16 +1199,22 @@ static QState uiMenuCalibrate(struct UI *me)
 		ACTION();
 		if (me->cal < MAX_CAL) {
 			SERIALSTR("up\r\n");
+			lcd_buttons(LCD_BUTTONS_ALL);
 			me->cal ++;
 			show_temperature_cal(me);
+		} else {
+			lcd_buttons(LCD_BUTTONS_ENTER_DOWN_CANCEL);
 		}
 		return Q_HANDLED();
 	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
 		if (me->cal > MIN_CAL) {
 			SERIALSTR("down\r\n");
+			lcd_buttons(LCD_BUTTONS_ALL);
 			me->cal --;
 			show_temperature_cal(me);
+		} else {
+			lcd_buttons(LCD_BUTTONS_ENTER_UP_CANCEL);
 		}
 		return Q_HANDLED();
 	}
@@ -1280,6 +1303,13 @@ static QState uiMenuAdjusttime(struct UI *me)
 	case Q_ENTRY_SIG:
 		SERIALSTR("uiMAT\r\n");
 		me->adjustment = BSP_get_adjustment();
+		if (me->adjustment >= MAX_ADJ) {
+			lcd_buttons(LCD_BUTTONS_ENTER_DOWN_CANCEL);
+		} else if (me->adjustment <= MIN_ADJ) {
+			lcd_buttons(LCD_BUTTONS_ENTER_DOWN_CANCEL);
+		} else {
+			lcd_buttons(LCD_BUTTONS_ALL);
+		}
 		display_adjusttime(me);
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
@@ -1292,7 +1322,10 @@ static QState uiMenuAdjusttime(struct UI *me)
 		if (me->adjustment < MAX_ADJ) {
 			SERIALSTR("up\r\n");
 			me->adjustment ++;
+			lcd_buttons(LCD_BUTTONS_ALL);
 			display_adjusttime(me);
+		} else {
+			lcd_buttons(LCD_BUTTONS_ENTER_DOWN_CANCEL);
 		}
 		return Q_HANDLED();
 	case BUTTON_DOWN_PRESS_SIGNAL:
@@ -1300,7 +1333,10 @@ static QState uiMenuAdjusttime(struct UI *me)
 		if (me->adjustment > MIN_ADJ) {
 			SERIALSTR("down\r\n");
 			me->adjustment --;
+			lcd_buttons(LCD_BUTTONS_ALL);
 			display_adjusttime(me);
+		} else {
+			lcd_buttons(LCD_BUTTONS_ENTER_UP_CANCEL);
 		}
 		return Q_HANDLED();
 	}
