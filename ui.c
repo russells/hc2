@@ -698,7 +698,7 @@ static QState uiMenuMaybeSettime(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		lcd_buttons(LCD_BUTTONS_ALL);
+		lcd_buttons(LCD_BUTTONS_ENTER_DOWN_CANCEL);
 		lcd_showstring("SETTIME");
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
@@ -707,10 +707,10 @@ static QState uiMenuMaybeSettime(struct UI *me)
 		return Q_TRAN(uiMenuSettimeYears);
 	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeCalibrate);
+		return Q_HANDLED();
 	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeAdjusttime);
+		return Q_TRAN(uiMenuMaybeCalibrate);
 	}
 	return Q_SUPER(uiMenu);
 }
@@ -728,10 +728,10 @@ static QState uiMenuMaybeCalibrate(struct UI *me)
 		return Q_TRAN(uiMenuCalibrateTemperature);
 	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeAdjusttime);
+		return Q_TRAN(uiMenuMaybeSettime);
 	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeSettime);
+		return Q_TRAN(uiMenuMaybeAdjusttime);
 	}
 	return Q_SUPER(uiMenu);
 }
@@ -741,7 +741,7 @@ static QState uiMenuMaybeAdjusttime(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		lcd_buttons(LCD_BUTTONS_ALL);
+		lcd_buttons(LCD_BUTTONS_ENTER_UP_CANCEL);
 		lcd_showstring("ADJTIME");
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
@@ -749,10 +749,10 @@ static QState uiMenuMaybeAdjusttime(struct UI *me)
 		return Q_TRAN(uiMenuAdjusttime);
 	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeSettime);
+		return Q_TRAN(uiMenuMaybeCalibrate);
 	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuMaybeCalibrate);
+		return Q_HANDLED();
 	}
 	return Q_SUPER(uiMenu);
 }
