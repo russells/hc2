@@ -8,11 +8,6 @@ Displays temperature as
 
 A wedding present for Andrew and Kate.
 
-# Display requirements
-
- * Really need an eight digit display but can do with seven.
- * "12 Colds" is eight digits.
-
 # Hardware
 
 ## Microcontroller
@@ -23,14 +18,6 @@ A wedding present for Andrew and Kate.
  * Available from RS.
 
 ## Display
-
-One of these types will be used.  Some of each are on the way.
-
-### Varitronix VIM-828
-
- * 14 segment starburst, 8 digits, with 7 decimal points.
- * Made by varitronix, but not available from them as a retail component.
- * Not easily available from very many places at all.
 
 ### SoftBaugh SBLCDA2
 
@@ -49,11 +36,11 @@ One of these types will be used.  Some of each are on the way.
 
 ## Temperature sensor
 
- * I have some MCP9700A devices.
+ * MCP9700A
   * Analogue output
   * Vcc down to 2.3V
 
 # Power
 
- * 2 x AA cells.
+ * 2 x AAA cells.
 
