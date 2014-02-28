@@ -43,10 +43,9 @@ void rtc_ctor(void)
 	rtc.time.year = MIN_YEAR;
 	rtc.time.month = 3;
 	rtc.time.day = 7;
-	/* TODO make this default to the time of the ceremony. */
-	rtc.time.ht = '2';
-	rtc.time.h1 = '2';
-	rtc.time.mt = '0';
+	rtc.time.ht = '1';
+	rtc.time.h1 = '7';
+	rtc.time.mt = '3';
 	rtc.time.m1 = '0';
 	rtc.time.seconds = 0;
 }
