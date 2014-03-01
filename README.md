@@ -44,3 +44,17 @@ A wedding present for Andrew and Kate.
 
  * 2 x AAA cells.
 
+## Power measurements
+
+ * With serial and LED disabled, power consumption has been measured at
+   25.8uA mean.
+  * 13uA background
+  * 60uA, 50us pulses, 4ms apart
+  * 430uA, 170 us pulses, at 32Hz (31250ms period) - this is the timer
+    tick.
+  * 510uA, 38ms pulses, at 0.5Hz (2000ms period) - this is the ADC doing
+    its thing every two seconds.
+  * Total power = 13 + 60\*(50/4000) + 430\*(170/31250) + 510\*(38/2000) =
+    25.8uA
+ * With the batteries at 2.9V, one battery was removed.  The unit ran for
+   30 minutes, with the capacitor supply voltage dropping to 2.25V.
