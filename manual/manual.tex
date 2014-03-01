@@ -1,0 +1,500 @@
+\documentclass[11pt]{article}
+\usepackage[twoside,inner=2.5cm,outer=1.5cm,paper=a5paper]{geometry}
+\usepackage{fixltx2e} % LaTeX patches, \textsubscript
+\usepackage{cmap} % fix search and cut-and-paste in Acrobat
+\usepackage{ifthen}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{longtable,ltcaption,array}
+\setlength{\extrarowheight}{2pt}
+\newlength{\DUtablewidth} % internal use in tables
+
+\usepackage{mathptmx} % Times
+\usepackage[scaled=.90]{helvet}
+\usepackage{courier}
+
+%%% User specified packages and stylesheets
+
+%%% Fallback definitions for Docutils-specific commands
+% numeric or symbol footnotes with hyperlinks
+\providecommand*{\DUfootnotemark}[3]{%
+  \raisebox{1em}{\hypertarget{#1}{}}%
+  \hyperlink{#2}{\textsuperscript{#3}}%
+}
+\providecommand{\DUfootnotetext}[4]{%
+  \begingroup%
+  \renewcommand{\thefootnote}{%
+    \protect\raisebox{1em}{\protect\hypertarget{#1}{}}%
+    \protect\hyperlink{#2}{#3}}%
+  \footnotetext{#4}%
+  \endgroup%
+}
+
+% hyperlinks:
+\ifthenelse{\isundefined{\hypersetup}}{
+  \usepackage[colorlinks=true,linkcolor=blue,urlcolor=blue]{hyperref}
+  \urlstyle{same} % normal text font (alternatives: tt, rm, sf)
+}{}
+\hypersetup{
+  pdftitle={HOTS AND COLDS Thermometer},
+}
+
+%%% Title Data
+\title{\phantomsection%
+  \textbf{HOTS AND COLDS Thermometer}%
+  \label{your-hots-and-colds-thermometer}}
+\author{}
+\date{}
+
+\pagestyle{plain}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.3ex}
+
+\newcommand{\HCT}{\textbf{HOTS AND COLDS Thermometer}}
+
+
+\newcommand{\ButtonEnter}%
+           {\includegraphics[height=1.1em]{button-enter.png}}
+\newcommand{\ButtonCancel}%
+           {\includegraphics[height=1.1em]{button-cancel.png}}
+\newcommand{\ButtonUp}%
+           {\includegraphics[height=1.1em]{button-up.png}}
+\newcommand{\ButtonDown}%
+           {\includegraphics[height=1.1em]{button-down.png}}
+\newcommand{\ArrowDown}%
+           {\includegraphics[height=1.1em]{arrow-down.png}}
+\newcommand{\ArrowLeft}%
+           {\includegraphics[height=1.1em]{arrow-left.png}}
+\newcommand{\ArrowRight}%
+           {\includegraphics[height=1.1em]{arrow-right.png}}
+\newcommand{\ArrowUp}%
+           {\includegraphics[height=1.1em]{arrow-up.png}}
+
+
+%%% Body
+\begin{document}
+
+\pagestyle{empty}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1ex plus 0.5ex minus 0.5ex}
+
+\begin{center}
+
+  \vfill
+
+  \Huge{\HCT}
+
+  \vfill
+
+  \includegraphics[width=\textwidth]{dev-hardware.png}
+
+  {\small FIXME put in the right picture}
+
+  \vfill
+
+\end{center}
+
+\break
+
+Congratulations on your purchase of a new \HCT{}.
+
+You can now display temperature in your home with the user friendly
+\textbf{hots and colds} scale.  This scale is centred on a comfortable
+temperature for normal people, which is used as a reference for
+temperatures both hotter and colder than that.
+
+Temperatures are displayed as:
+\begin{itemize}
+\item \texttt{NORMAL} for a normal temperature \DUfootnotemark{id1}{id2}{1}
+\DUfootnotetext{id2}{id1}{1}{%
+Normal is equivalent to 20\textsuperscript{O}C
+}
+\item A number of hots for temperatures above \texttt{NORMAL} (eg
+  \texttt{12 HOTS})
+\item A number of colds for temperatures below \texttt{NORMAL} (eg
+  \texttt{3 COLDS})
+\end{itemize}
+%
+
+%\includegraphics[height=147bp,width=413bp]{HC-demo-nobat.png}
+\includegraphics[height=0.356\textwidth,width=\textwidth]{HC-demo-nobat.png}
+
+\tableofcontents
+
+
+%___________________________________________________________________________
+
+\section*{\phantomsection%
+  Setting up%
+  \addcontentsline{toc}{section}{Setting up}%
+  \label{setting-up}%
+}
+
+Remove your \HCT{} from its packaging and either stand it on its base in a
+convenient location or use the magnet on its rear to attach it to a
+suitable surface (eg your fridge.)
+
+Your \HCT{} has been temperature calibrated and its clock has been set at
+the factory.
+
+
+%___________________________________________________________________________
+
+\section*{\phantomsection%
+  Precautions%
+  \addcontentsline{toc}{section}{Precautions}%
+  \label{precautions}%
+}
+
+Your \HCT{} is safe for normal use, but there are some precautions you
+should take.
+%
+\begin{itemize}
+
+\item Exposure to extreme temperatures outside the operating range (see
+  Specifications) may result in incorrect operation or failure.  At very
+  low temperatures (such as in your freezer) the display will appear to
+  change very slowly.
+
+\item Do not get the device wet.  If you put it in your freezer, place it
+  in a plastic bag first, and only remove it from the plastic bag when the
+  bag and device are back at room temperature.
+
+\item Do not leave in direct sunlight.  This will result in incorrect
+  temperature readings.
+
+\item Not for use where failure could result in injury or death.
+
+\item Not for medical use.
+
+\item Do not swallow.
+
+\end{itemize}
+
+
+%___________________________________________________________________________
+
+\section*{\phantomsection%
+  The display%
+  \addcontentsline{toc}{section}{The display}%
+  \label{the-display}%
+}
+
+\includegraphics[height=0.356\textwidth,width=\textwidth]{HC-display-parts-nobat.png}
+
+The display of your \HCT{} shows the current time at the top right, and the
+current temperature on the main display at the bottom.  The main display is
+also used for the menu system, and to display recorded maximum and minimum
+temperatures.
+
+While in the menu system, a timeout showing four bars shows at the top left
+of the display.  When the timeout bars disappear after 12 seconds without
+button presses, the display will exit the menu system.
+
+Four arrow indicators tell you which buttons are active at any time.
+\ArrowUp{} means the up botton (\ButtonUp), \ArrowDown{} means the down
+button (\ButtonDown), \ArrowLeft{} means the cancel button (\ButtonCancel),
+and \ArrowRight{} means the enter button (\ButtonEnter).
+
+
+%___________________________________________________________________________
+
+\section*{\phantomsection%
+  The buttons%
+  \addcontentsline{toc}{section}{The buttons}%
+  \label{the-buttons}%
+}
+
+Your \HCT{} has four buttons.
+
+%\includegraphics[height=65bp,width=413bp]{HC-buttons.png}
+\includegraphics[height=0.157\textwidth,width=\textwidth]{HC-buttons.png}
+
+\newcounter{listcnt0}
+\begin{list}{\arabic{listcnt0}.}
+{
+\usecounter{listcnt0}
+\setlength{\rightmargin}{\leftmargin}
+}
+
+\item \ButtonCancel{} is for the cancel function.
+
+\item \ButtonUp{} is for the up function, and to display maximum
+  temperature.
+
+\item \ButtonDown{} is for the down function, and to display minimum
+  temperature.
+
+\item \ButtonEnter{} is for the enter function, and for starting the menu.
+
+\end{list}
+
+
+%___________________________________________________________________________
+
+\section*{\phantomsection%
+  Configuring%
+  \addcontentsline{toc}{section}{Configuring}%
+  \label{configuring}%
+}
+
+
+%___________________________________________________________________________
+
+\subsection*{\phantomsection%
+  Setting time%
+  \addcontentsline{toc}{subsection}{Setting time}%
+  \label{setting-time}%
+}
+%
+\begin{itemize}
+
+\item Press \ButtonEnter{}.
+
+\item The display shows \texttt{SETTIME}.
+
+\item Press \ButtonEnter{} again.
+
+\item The display shows \texttt{Y 2014} (or the current year), and the year
+  will flash.
+
+\item Press \ButtonUp{} or \ButtonDown{} to change the year.
+
+\item Press \ButtonEnter{} to go to month, then to day, then to hour, then
+  to minute.  Each time element can be changed with \ButtonUp{} and
+  \ButtonDown{}.
+
+\item After you press \ButtonEnter{} when setting the minutes, the time is
+  set and saved.
+
+\item You can cancel setting the time with \ButtonCancel{}.
+
+\item If you don't press a button for 12 seconds, the display will exit the
+  menu system without setting the time.
+
+\end{itemize}
+
+
+%___________________________________________________________________________
+
+\subsection*{\phantomsection%
+  Calibrating temperature%
+  \addcontentsline{toc}{subsection}{Calibrating temperature}%
+  \label{calibrating-temperature}%
+}
+
+Your \HCT{} was calibrated at the factory, so you
+should not need to do your own calibration.  But if you wish to change the
+calibration:
+%
+\begin{itemize}
+
+\item Press \ButtonEnter{} to enter the menu.
+
+\item The display shows \texttt{SETTIME}.
+
+\item Press \ButtonDown{}.
+
+\item The display shows \texttt{CALTEMP}.
+
+\item Press \ButtonEnter{}.
+
+\item The display will now show the temperature in the archaic ``degrees
+  Celsius'' scale, and an offset.  You can compare the temperature with an
+  old style thermometer, and adjust in 0.5\textsuperscript{O}C steps.
+
+\end{itemize}
+
+%\includegraphics[height=147bp,width=413bp]{HC-temp-cal-plus-nobat.png}
+\includegraphics[height=0.356\textwidth,width=\textwidth]{HC-temp-cal-plus-nobat.png}
+
+\begin{itemize}
+
+\item When you are happy with the calibration, press \ButtonEnter{}.
+
+\item The calibration is saved permanently.
+
+\item You can cancel the temperature calibration changes by pressing
+  \ButtonCancel{}.
+
+\item If you don't press a button for 12 seconds, the display will exit the
+  menu system without saving the new temperature calibration.
+
+\end{itemize}
+
+
+%___________________________________________________________________________
+
+\subsection*{\phantomsection%
+  Adjusting time%
+  \addcontentsline{toc}{subsection}{Adjusting time}%
+  \label{adjusting-time}%
+}
+
+Your \HCT{} was adjusted to keep correct time at the factory, and should
+not drift more than a couple of minutes per year.  But if you wish to
+change its time adjustment:
+%
+\begin{itemize}
+
+\item Press \ButtonEnter{} to enter the menu.
+
+\item The display says \texttt{SETTIME}.
+
+\item Press \ButtonDown{} twice.
+
+\item The display says \texttt{ADJTIME}.
+
+\item Press \ButtonEnter{}.
+
+\item The display will show the current adjustment in seconds per day.  To
+  make the clock run slower, decrease the number (or make it more
+  negative.)  To make the clock run faster, increase the number (or make it
+  less negative.)
+
+\item You can change the adjustment from -20 seconds per day to +20 seconds
+  per day, in steps of 0.25 seconds per day.
+
+\item When you are happy with the adjustment, press \ButtonEnter{}.
+
+\item The time adjustment is saved permanently.
+
+\item You can cancel the time adjustment changes by pressing
+  \ButtonCancel{}.
+
+\item If you don't press a button for 12 seconds, the display will exit the
+  menu system without saving the new time adjustment.
+
+\end{itemize}
+
+
+%___________________________________________________________________________
+
+\section*{\phantomsection%
+  Displaying the maximum or minimum temperature%
+  \addcontentsline{toc}{section}{Displaying the maximum or minimum temperature}%
+  \label{displaying-the-maximum-or-minimum-temperature}%
+}
+
+When your \HCT{} is displaying the current temperature, you can press
+\ButtonUp{} to display the maximum temperature since the last 3pm time.  It
+will also display the maximum temperature in the 24 hours to the last 3pm
+time, then return to displaying the current temperature.
+
+Press \ButtonDown{} while the display is showing the current temperature,
+or while displaying the maximum, to display the minimum temperature since
+the last 9am time, followed by the minimum temperature in the 24 hours up
+to the last 9am time.
+
+The times and temperatures are shown sequentially, as they don't fit on the
+display together.  For example:
+
+\begin{center}
+
+\includegraphics[height=0.136\textwidth,width=0.7\textwidth]{HC-max-MAX_T__.png}
+
+\includegraphics[height=0.136\textwidth,width=0.7\textwidth]{HC-max-SINCE__.png}
+
+\includegraphics[height=0.136\textwidth,width=0.7\textwidth]{HC-max-3_PM___.png}
+
+\includegraphics[height=0.136\textwidth,width=0.7\textwidth]{HC-max-5__HOTS.png}
+
+\end{center}
+
+%___________________________________________________________________________
+
+\section*{\phantomsection%
+  Changing the battery%
+  \addcontentsline{toc}{section}{Changing the battery}%
+  \label{changing-the-battery}%
+}
+
+Your \HCT{} requires two 1.5V AAA size batteries.  When the display goes
+dim, the batteries should be changed.
+
+To change the batteries, use a pozidrive screwdriver to remove the front
+and rear covers.  There is one battery under the front cover and one under
+the rear cover.  If the old batteries were not too flat, your \HCT{} will
+continue to run for a few minutes while you insert new batteries.
+
+Energizer Lithium batteries should last for at least three years in normal
+use.
+
+
+%___________________________________________________________________________
+\break
+
+\section*{\phantomsection%
+  Specifications%
+  \addcontentsline{toc}{section}{Specifications}%
+  \label{specifications}%
+}
+
+\setlength{\DUtablewidth}{\linewidth}
+\begin{longtable*}[c]{|p{0.450\DUtablewidth}|p{0.450\DUtablewidth}|}
+\hline
+
+Minimum temperature & 50 COLDS \\
+\hline
+
+Maximum temperature & 50 HOTS \\
+\hline
+
+Temperature calibration range &
++/- 4.5 HOTS/COLDS (+/- 4.5\textsuperscript{O}C -{}- Eww) \\
+\hline
+
+Time accuracy (with adjustment) &
++/- 0.125 seconds per day (about 45 seconds per year) \\
+\hline
+
+Time adjustment range & +/- 20 seconds per day \\
+\hline
+
+Battery life & At least 3 years, with lithium AAA batteries \\
+
+\hline
+
+\end{longtable*}
+
+
+%___________________________________________________________________________
+
+\section*{\phantomsection%
+  Warranty%
+  \addcontentsline{toc}{section}{Warranty}%
+  \label{warranty}%
+}
+
+Your \HCT{} has a lifetime warranty.  When it stops working, it is at the
+end of its life.
+
+In order to fix identified issues with the device, we may at times offer
+software upgrades.
+
+
+%___________________________________________________________________________
+\break
+
+\section*{\phantomsection%
+  Calibration Information%
+  \addcontentsline{toc}{section}{Calibration Information}%
+  \label{calibration-information}%
+}
+%
+\begin{longtable*}[c]{|p{0.450\DUtablewidth}|p{0.450\DUtablewidth}|}
+\hline
+\texttt{Serial number} & \vskip 2.5em \\
+\hline
+\texttt{Temperature calibration} & \vskip 2.5em \\
+\hline
+\texttt{Time adjustment} & \vskip 2.5em \\
+\hline
+\texttt{Calibrated by} & \vskip 2.5em \\
+\hline
+\end{longtable*}
+
+
+\end{document}

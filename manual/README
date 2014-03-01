@@ -1,0 +1,30 @@
+-*- outline -*-
+
+After running make, these tasks are necessary for the final product:
+
+* When the final manual is produced:
+
+** save manual.pdf as manual-YYYYMMDD.pdf
+
+** Generate manual-book.ps
+
+** Save manual-book.ps as manual-book-YYYYMMDD.ps
+
+** save dev-card.pdf as dev-card-YYYYMMDD.pdf
+
+** commit these files
+*** manual-YYYYMMDD.pdf
+*** manual-book-YYYYMMDD.ps
+*** dev-card-YYYYMMDD.pdf
+
+** Print manual-book-YYYYMMDD.ps on A5 glossy paper.
+
+** Print dev-card-YYYYMMDD.pdf on A5 glossy paper.
+
+* Calibration info
+
+** Serial number is 1
+
+** Get temperature calibration from a standard
+
+** Set time adjustment with the auto time adjustment checker
