@@ -3,8 +3,9 @@
 
 #include "qpn_port.h"
 
-// TODO: calculate ticks per second correctly.
 #define BSP_TICKS_PER_SECOND 1
+#define BSP_TICKS_PER_SECOND_TIMER1 32
+#define BSP_TICKS_PER_SECOND_TIMER2 32
 
 void BSP_init(void);
 

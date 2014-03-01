@@ -664,13 +664,15 @@ static QState uiMenu(struct UI *me)
 		SERIALSTR("U");
 		me->timeoutcounter = 4;
 		lcd_timeouts(me->timeoutcounter);
-		QActive_armX((QActive*)(me), 2, 50);
+		QActive_armX((QActive*)(me), 2,
+			     3 * BSP_TICKS_PER_SECOND_TIMER2);
 		return Q_HANDLED();
 	case Q_TIMEOUT2_SIG:
 		me->timeoutcounter --;
 		lcd_timeouts(me->timeoutcounter);
 		if (me->timeoutcounter) {
-			QActive_armX((QActive*)(me), 2, 50);
+			QActive_armX((QActive*)(me), 2,
+				     3 * BSP_TICKS_PER_SECOND_TIMER2);
 			return Q_HANDLED();
 		} else {
 			return Q_TRAN(uiRun);
@@ -845,7 +847,7 @@ static inline void dec_settime_day(struct UI *me) {
 			QActive_armX((QActive*)me, 1, 17);		\
 			return Q_HANDLED();				\
 		case Q_TIMEOUT1_SIG:					\
-		return Q_TRAN(flash_);					\
+			return Q_TRAN(flash_);				\
 		case BUTTON_ENTER_PRESS_SIGNAL:				\
 			ACTION();					\
 			return Q_TRAN(next_);				\
