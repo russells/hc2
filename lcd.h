@@ -11,6 +11,7 @@ void lcd_showstring(const char *s);
 void lcd_showdigits(const char *ds);
 void lcd_colon(uint8_t onoff);
 void lcd_timeouts(uint8_t timeouts);
+void lcd_battery(uint8_t b);
 void lcd_buttons(uint8_t buttons);
 
 #define LCD_BUTTON_DOWN 0x80

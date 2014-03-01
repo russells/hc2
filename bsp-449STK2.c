@@ -40,9 +40,7 @@ Q_DEFINE_THIS_MODULE("b");
 
 /** Select the temperature analogue input channel. */
 #define TEMPERATURE_INCH 0b0001
-
-
-static int16_t convert_adc_to_temperature(uint16_t adc);
+#define VCC_INCH         0b1011
 
 
 /** If true, we want QP fast timer 1 running. */
@@ -490,8 +488,43 @@ void BSP_do_reset(void)
 }
 
 
-void BSP_start_temperature_reading(void)
+static volatile QActive *adc_ao;
+static volatile QSignal adc_signal;
+static volatile uint16_t adc_channel;
+
+
+uint8_t BSP_start_temperature_reading(QActive *ao, QSignal signal,
+				      uint16_t channel)
 {
+	uint16_t inch_bits;
+
+	__disable_interrupt();
+	uint16_t adcon = ADC12CTL0 & ADC12ON;
+	__enable_interrupt();
+	if (adcon) {
+		SERIALSTR("<-A:"); serial_send_int(channel); SERIALSTR(">");
+		return FALSE;
+	}
+	SERIALSTR("<+A:"); serial_send_int(channel); SERIALSTR(">");
+
+
+	switch (channel) {
+	case temperature_channel:
+		inch_bits = TEMPERATURE_INCH;
+		break;
+	case vcc_channel:
+		inch_bits = VCC_INCH;
+		break;
+	default:
+		inch_bits = 0;
+		Q_ASSERT( 0 );
+		break;
+	}
+
+	adc_ao = ao;
+	adc_signal = signal;
+	adc_channel = channel;
+
 	SERIALSTR("t");
 
 	SB(TEMPPOWER_OUT, TEMPPOWER_BIT);     /* Power up the MCP9700A */
@@ -529,12 +562,15 @@ void BSP_start_temperature_reading(void)
 		/* VR+=Vref+, VR-=AVss */
 		(SREF2 & 0) | (SREF1 & 0) | (SREF0)
 		/* Input channel */
-		| TEMPERATURE_INCH;
+		| inch_bits;
 	/* Reset all pending ADC12 interrupts. */
 	ADC12IFG = 0;
 	/* No more work here, as we need to wait for the reference to
 	   stabilise.  The main QHsm will wiat an appropriate time, and call
 	   BSP_get_temperature() to retrieve the reading. */
+
+	/* We were able to use the ADC, so indicate that. */
+	return TRUE;
 }
 
 
@@ -564,6 +600,11 @@ isr_ADC12(void)
 	static uint16_t previous_adc = 0x0002;
 	static int16_t previous_temperature = 0;
 
+	/** @todo move the previous_adc stuff in to recorder.c */
+
+	/** @todo make the BSP convert adc to temperature.  It already does,
+	    but make convert_adc_to_temperature() public, and prefix with BSP_.
+	 */
 	BSP_led_on();
 
 	adc = ADC12MEM10;
@@ -573,14 +614,14 @@ isr_ADC12(void)
 	/* The ADC value must move by at least four LSB before we regard it as
 	   having changed.  This reduces jitter in the temperature readings. */
 	if (abs(adc - previous_adc) >= 4) {
-		temperature = convert_adc_to_temperature(adc);
+		temperature = BSP_convert_adc_to_temperature(adc);
 		previous_temperature = temperature;
 		previous_adc = adc;
 	} else {
 		temperature = previous_temperature;
 		serial_send_int(previous_adc);
 	}
-	postISR((QActive*)(&recorder), TEMPERATURE_SIGNAL, temperature);
+	postISR(adc_ao, adc_signal, temperature);
 	ADC12IFG = 0;
 	ADC12IE = 0;
 
@@ -643,7 +684,7 @@ static int tccompare(const void *key, const void *entry)
  * We first check for extreme values from the ADC (above upper bound or below
  * lower bound).  Then we do a binary search of the conversion array.
  */
-static int16_t convert_adc_to_temperature(uint16_t adc)
+int16_t BSP_convert_adc_to_temperature(uint16_t adc)
 {
 	struct TempConversion keytc;
 	struct TempConversion *matchtcp;

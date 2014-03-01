@@ -35,6 +35,11 @@ struct UI {
 	 * displaying the maximum or minimum temperatures.
 	 */
 	uint8_t showmaxmincounter;
+
+	/**
+	 * Count the number of times we try to get the temperature reading.
+	 */
+	uint8_t temperatureWaits;
 };
 
 

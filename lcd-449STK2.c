@@ -21,6 +21,9 @@ static uint8_t colon = 0;
 /** The number of timeout bars to display. */
 static uint8_t timeouts = 0;
 
+/** The number of battery segments to display. */
+static uint8_t battery = 0;
+
 /** A bitmap of button indicators to display. */
 static uint8_t buttons = 0;
 
@@ -61,6 +64,29 @@ static void display_colon(void)
 }
 
 
+/** Turn on the battery segments. */
+static void display_battery(void)
+{
+	switch (battery) {
+	case 0:
+		LCDM2 |= 0b00010000;
+		break;
+	case 1:
+		LCDM2 |= 0b10010000;
+		break;
+	case 2:
+		LCDM2 |= 0b11010000;
+		break;
+	case 3:
+		LCDM2 |= 0b11110000;
+		break;
+	default:
+		Q_ASSERT( 0 );
+		break;
+	}
+}
+
+
 static void display_buttons(void)
 {
 	Q_ASSERT( ! (buttons & 0x0f) );
@@ -78,6 +104,7 @@ static void write_lcd_registers(void)
 	}
 	display_colon();
 	display_timeouts();
+	display_battery();
 	display_buttons();
 }
 
@@ -425,6 +452,13 @@ void lcd_timeouts(uint8_t t)
 	Q_ASSERT( t < 5 );
 	timeouts = t;
 	write_lcd_registers();
+}
+
+
+void lcd_battery(uint8_t b)
+{
+	Q_ASSERT( b <= 3 );
+	battery = b;
 }
 
 

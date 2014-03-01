@@ -17,6 +17,8 @@ static QState initial(struct Recorder *me);
 static QState top(struct Recorder *me);
 static QState waiting(struct Recorder *me);
 static QState recTemperature(struct Recorder *me);
+static QState recStartTemperature(struct Recorder *me);
+static QState recStartedTemperature(struct Recorder *me);
 static QState recGetTemperature(struct Recorder *me);
 static int16_t get_calibrated_ti(int16_t ti, int16_t cal);
 static void save_max_and_min(struct Recorder *me, int16_t ti);
@@ -66,22 +68,32 @@ static void init_titime(struct TiTime *titime)
 	titime->time.m1 = '9';
 }
 
+
+static uint8_t start(struct Recorder *me)
+{
+	return BSP_start_temperature_reading(&me->super,
+					     TEMPERATURE_SIGNAL,
+					     temperature_channel);
+}
+
+
 static QState waiting(struct Recorder *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
 		SERIALSTR("<W>");
-		BSP_fast_timer_1(FALSE);
 		QActive_arm(&me->super, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT_SIG:
-		return Q_TRAN(recTemperature);
+		if (start(me)) {
+			return Q_TRAN(recStartedTemperature);
+		} else {
+			me->temperatureWaits = 0;
+			return Q_TRAN(recStartTemperature);
+		}
 	}
 	return Q_SUPER(top);
 }
-
-
-// TODO move all the temperature code from ui.c into here.
 
 
 static QState recTemperature(struct Recorder *me)
@@ -90,15 +102,57 @@ static QState recTemperature(struct Recorder *me)
 	case Q_ENTRY_SIG:
 		SERIALSTR("<R>");
 		BSP_fast_timer_1(TRUE);
-		// Start reading the temperature.
-		BSP_start_temperature_reading();
-		// If we time out, go back to just waiting.
+		me->temperatureWaits = 0;
+		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+		return Q_TRAN(recGetTemperature);
+	case Q_EXIT_SIG:
+		BSP_fast_timer_1(FALSE);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(top);
+}
+
+
+static QState recStartTemperature(struct Recorder *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		SERIALSTR("<w.>");
+		QActive_armX(&me->super, 1, 1);
+		return Q_HANDLED();
+
+	case Q_TIMEOUT1_SIG:
+		// Try again to start reading the temperature.
+		if (start(me)) {
+			SERIALSTR("+");
+			return Q_TRAN(recStartedTemperature);
+		} else {
+			SERIALSTR("-");
+			// Starting temperature reading failed
+			me->temperatureWaits ++;
+			// Wait one tick before trying again
+			Q_ASSERT( me->temperatureWaits < 10 );
+			QActive_armX(&me->super, 1, 1);
+			// Re-enter here and try again.
+			return Q_TRAN(recStartTemperature);
+		}
+	}
+	return Q_SUPER(recTemperature);
+}
+
+
+static QState recStartedTemperature(struct Recorder *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		// Wait one tick for the ADC and sensor to stabilise.
 		QActive_armX(&me->super, 1, 1);
 		return Q_HANDLED();
 	case Q_TIMEOUT1_SIG:
 		return Q_TRAN(recGetTemperature);
 	}
-	return Q_SUPER(top);
+	return Q_SUPER(recTemperature);
 }
 
 
@@ -110,6 +164,7 @@ static QState recGetTemperature(struct Recorder *me)
 	case Q_ENTRY_SIG:
 		SERIALSTR("<G>");
 		BSP_get_temperature();
+		// If we time out, go back to just waiting.
 		QActive_armX((QActive*)me, 1, 2);
 		return Q_HANDLED();
 	case TEMPERATURE_SIGNAL:
@@ -130,6 +185,7 @@ static QState recGetTemperature(struct Recorder *me)
 		post(&ui.super, CURRENT_TEMPERATURE_SIGNAL, (QParam) me->ti);
 		return Q_TRAN(waiting);
 	case Q_TIMEOUT1_SIG:
+		// We timed out before the temperature signal. :(
 		SERIALSTR("<X>");
 		return Q_TRAN(waiting);
 	}

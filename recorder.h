@@ -13,6 +13,7 @@ struct Recorder {
 	struct TiTime max_yesterday;
 	struct TiTime min_today;
 	struct TiTime min_yesterday;
+	uint8_t temperatureWaits;
 };
 
 
