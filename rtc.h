@@ -15,7 +15,7 @@ extern struct RTC rtc;
 
 void rtc_ctor(void);
 
-inline struct Time *gettimep(void) {
+inline const struct Time *gettimep(void) {
 	return &(rtc.time);
 }
 

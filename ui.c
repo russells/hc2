@@ -88,6 +88,22 @@ static QState uiInitial(struct UI *me)
 }
 
 
+static void show_time(const struct Time *time)
+{
+	/** Hack alert!  This code rashly assumes that the ht, h1, mt, and m1
+	    fields contain ASCII digits, and that they are consecutive in
+	    memory.  This code broke when I added the year, month, and day
+	    fields to struct Time, because it previously assumed that &time was
+	    the same as &(time->ht). */
+	lcd_showdigits((const char *)(&(time->ht)));
+	if (time->seconds & 0x02) {
+		lcd_colon(1);
+	} else {
+		lcd_colon(0);
+	}
+}
+
+
 static QState uiTop(struct UI *me)
 {
 	const struct Time *time;
@@ -109,18 +125,7 @@ static QState uiTop(struct UI *me)
 		Q_ASSERT( time->h1 >= '0' && time->h1 <= '9' );
 		Q_ASSERT( time->mt >= '0' && time->mt <= '9' );
 		Q_ASSERT( time->m1 >= '0' && time->m1 <= '9' );
-		/** Hack alert!  This code rashly assumes that the ht, h1, mt,
-		    and m1 fields contain ASCII digits, and that they are
-		    consecutive in memory.  This code broke when I added the
-		    year, month, and day fields to struct Time, because it
-		    previously assumed that &time was the same as
-		    &(time->ht). */
-		lcd_showdigits((const char *)(&(time->ht)));
-		if (time->seconds & 0x02) {
-			lcd_colon(1);
-		} else {
-			lcd_colon(0);
-		}
+		show_time(time);
 		return Q_HANDLED();
 	case CURRENT_TEMPERATURE_SIGNAL:
 		/* Handle this signal here, so that no matter where the UI is,
@@ -197,6 +202,7 @@ static QState uiRun(struct UI *me)
 	case Q_ENTRY_SIG:
 		lcd_buttons(LCD_BUTTONS_ENTER_UP_DOWN);
 		show_temperature(me->ti);
+		show_time(gettimep());
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
 		return Q_TRAN(uiMenuMaybeSettime);
