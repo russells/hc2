@@ -61,17 +61,19 @@ while (<>) {
 		if ($minute_counter == 1) {
 			$cal_minute = "$1$2";
 			$first_diff = $diff;
-			$first_date = sprintf("%04d/%02d/%02d %02d:%02d",
+			$first_date = sprintf("%04d/%02d/%02d %02d:%02d:%02d",
 					      $year+1900, $mon+1, $mday,
-	 				      $hour, $min);
+					      $hour, $min, $sec);
 			print "\n\n----------------\n";
+			print sprintf("HC   :            $1:$2\n");
 			print sprintf("Start: $first_date %10.6f\n", $first_diff);
 			print "----------------\n\n";
 		} else {
 			if ("$1$2" eq $cal_minute) {
-				$now_date = sprintf("%04d/%02d/%02d %02d:%02d",
-						    $year+1900, $mon+1, $mday, $hour, $min);
+				$now_date = sprintf("%04d/%02d/%02d %02d:%02d:%02d",
+						    $year+1900, $mon+1, $mday, $hour, $min, $sec);
 				print "\n\n----------------\n";
+				print sprintf("HC   :            $1:$2\n");
 				print sprintf("Start: $first_date %10.6f\n", $first_diff);
 				print sprintf("Now  : $now_date %10.6f\n", $diff);
 				print "----------------\n\n";
