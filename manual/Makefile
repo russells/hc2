@@ -9,7 +9,9 @@ PDF = $(IN:.tex=.pdf)
 %.png: %.xcf
 	xcf2png -o $@ $<
 
-XCFS = SBLCDA2-blank.xcf \
+XCFS = 	\
+	HC-front-cover.xcf \
+	SBLCDA2-blank.xcf \
 	HC-demo.xcf \
 	HC-demo-nobat.xcf \
 	HC-display-parts.xcf \
