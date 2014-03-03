@@ -918,12 +918,12 @@ M(uiMenuSettimeMonths, uiMenuSettimeMonthsFlash, uiMenu, uiMenuSettimeDays,
  * for the set month, so we don't try to set Feb 31st, for example.
  */
 #define M_CHECK()							\
-	{								\
-	uint8_t max_day = max_day_for_month(&me->settime);		\
-	if (me->settime.day > max_day) {				\
-		me->settime.day = max_day;				\
-	}								\
-	}
+	do {								\
+		uint8_t max_day = max_day_for_month(&me->settime);	\
+		if (me->settime.day > max_day) {			\
+			me->settime.day = max_day;			\
+		}							\
+	} while (0)
 
 M(uiMenuSettimeDays, uiMenuSettimeDaysFlash, uiMenuSettimeDaysCheckmax,
   uiMenuSettimeHours,
@@ -1018,8 +1018,8 @@ static QState uiMenuSettimeHoursFlash(struct UI *me)
 	case BUTTON_DOWN_PRESS_SIGNAL:
 	case BUTTON_DOWN_LONG_PRESS_SIGNAL:
 	case BUTTON_DOWN_REPEAT_SIGNAL:
+		/** @see the comment in uiMenuSettimeMinutesFlash() */
 		display_set_time(me, TRUE, TRUE);
-		/* React to the event, but don't handle it. */
 		break;
 	case Q_EXIT_SIG:
 		QActive_armX((QActive*)me, 1, 17);
@@ -1082,8 +1082,13 @@ static QState uiMenuSettimeMinutesFlash(struct UI *me)
 	case BUTTON_DOWN_PRESS_SIGNAL:
 	case BUTTON_DOWN_LONG_PRESS_SIGNAL:
 	case BUTTON_DOWN_REPEAT_SIGNAL:
+		/**
+		 * React to the event by re-displaying the time (without the
+		 * minutes hidden), but don't handle it.  This makes the time
+		 * appear on the display as the button is pressed, which is
+		 * move obvious to the user.
+		 */
 		display_set_time(me, TRUE, TRUE);
-		/* React to the event, but don't handle it. */
 		break;
 	case Q_EXIT_SIG:
 		QActive_armX((QActive*)me, 1, 17);
@@ -1101,18 +1106,13 @@ static void display_set_year(struct UI *me, uint8_t on)
 
 	Q_ASSERT( me->settime.year >= MIN_YEAR );
 	Q_ASSERT( me->settime.year <= MAX_YEAR );
-	disp[0] = me->settime_YmdHM;
 	if (on) {
-		disp[1] = disp[2] = ' ';
-		snprintf(disp+3, 5, "%4d", me->settime.year);
+		snprintf(disp, 8, "Yr %4d", me->settime.year);
+		Q_ASSERT( ! disp[7] );
+		lcd_showstring(disp);
 	} else {
-		disp[1] = disp[2] = disp[3] = disp[4] = disp[5] = disp[6] = ' ';
+		lcd_showstring("Yr     ");
 	}
-	disp[7] = '\0';
-	SERIALSTR("{");
-	serial_send(disp);
-	SERIALSTR("}");
-	lcd_showstring(disp);
 }
 
 
@@ -1121,10 +1121,8 @@ static void display_set_month(struct UI *me, uint8_t on)
 	char disp[8];
 	const char *mname = "???";
 
-	SERIALSTR("<dsm>");
-
+	Q_ASSERT( me->settime.month > 0 );
 	Q_ASSERT( me->settime.month <= 12 );
-	disp[0] = me->settime_YmdHM;
 	if (on) {
 		switch (me->settime.month) {
 		case 1: mname = "JAN"; break;
@@ -1140,15 +1138,12 @@ static void display_set_month(struct UI *me, uint8_t on)
 		case 11: mname = "NOV"; break;
 		case 12: mname = "DEC"; break;
 		}
-		disp[1] = disp[2] = disp[3] = ' ';
-		strncpy(disp+4, mname, 4);
+		snprintf(disp, 8, "Mon %s", mname);
 		Q_ASSERT( ! disp[7] );
+		lcd_showstring(disp);
 	} else {
-		disp[1] = disp[2] = disp[3] = ' ';
-		disp[4] = disp[5] = disp[6] = ' ';
-		disp[7] = '\0';
+		lcd_showstring("Mon    ");
 	}
-	lcd_showstring(disp);
 }
 
 
@@ -1156,11 +1151,13 @@ static void display_set_day(struct UI *me, uint8_t on)
 {
 	char disp[8];
 
-	SERIALSTR("<dsd>");
-
-	snprintf(disp, 8, "Day  %2u", me->settime.day);
-	Q_ASSERT( ! disp[7] );
-	lcd_showstring(disp);
+	if (on) {
+		snprintf(disp, 8, "Day  %2u", me->settime.day);
+		Q_ASSERT( ! disp[7] );
+		lcd_showstring(disp);
+	} else {
+		lcd_showstring("Day    ");
+	}
 }
 
 
@@ -1169,17 +1166,12 @@ static void display_set_time(struct UI *me,
 {
 	char disp[8];
 
-	SERIALSTR("<dsT>");
-
 	snprintf(disp, 8, "%c  %c%c%c%c", me->settime_YmdHM,
 		 show_hours ? me->settime.ht : ' ',
 		 show_hours ? me->settime.h1 : ' ',
 		 show_minutes ? me->settime.mt : ' ',
 		 show_minutes ? me->settime.m1 : ' ');
 	Q_ASSERT( ! disp[7] );
-	SERIALSTR("{");
-	serial_send(disp);
-	SERIALSTR("}");
 	lcd_showstring(disp);
 }
 
