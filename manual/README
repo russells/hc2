@@ -6,20 +6,22 @@ After running make, these tasks are necessary for the final product:
 
 ** save manual.pdf as manual-YYYYMMDD.pdf
 
-** Generate manual-book.ps
+** Generate manual-book.pdf (make book)
 
-** Save manual-book.ps as manual-book-YYYYMMDD.ps
+** Save manual-book.pdf as manual-book-YYYYMMDD.pdf
 
 ** save dev-card.pdf as dev-card-YYYYMMDD.pdf
 
 ** commit these files
 *** manual-YYYYMMDD.pdf
-*** manual-book-YYYYMMDD.ps
+*** manual-book-YYYYMMDD.pdf
 *** dev-card-YYYYMMDD.pdf
 
-** Print manual-book-YYYYMMDD.ps on A5 glossy paper.
+** Print manual-book-YYYYMMDD.pdf on A4 glossy paper.
 
 ** Print dev-card-YYYYMMDD.pdf on A5 glossy paper.
+
+** Fold and staple manual-book-YYYYMMDD.pdf
 
 * Calibration info
 

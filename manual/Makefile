@@ -3,6 +3,8 @@ IN = manual.tex dev-card.tex
 
 PDF = $(IN:.tex=.pdf)
 
+BOOK = manual-book.pdf
+
 %.pdf: %.tex
 	latexmk -pdf $<
 
@@ -52,6 +54,14 @@ LATEXMK_OUTPUTS = \
 
 default: $(PDF)
 
+default: $(BOOK)
+
+.PHONY: book
+book: $(BOOK)
+
+$(BOOK): $(PDF)
+	pdfbook --short-edge $<
+
 manual-book.ps: manual.pdf
 	pdf2ps manual.pdf - | pstops '4:-3L(21cm,0)+0L(21cm,14.85cm),1L(21cm,0)+-2L(21cm,14.85cm)' /dev/stdin manual-book.ps
 
@@ -61,4 +71,4 @@ manual.pdf: $(BUILT_PNGS)
 
 .PHONY: clean
 clean:
-	rm -f $(PDF) $(BUILT_PNGS) $(TEX_OUTPUTS) $(LATEXMK_OUTPUTS)
+	rm -f $(BOOK) $(PDF) $(BUILT_PNGS) $(TEX_OUTPUTS) $(LATEXMK_OUTPUTS)
