@@ -51,8 +51,8 @@ static QState uiMenuSettimeMinutesFlash(struct UI *me);
 
 static QState uiMenuMaybeCalibrate(struct UI *me);
 static QState uiMenuCalibratePause(struct UI *me);
-static QState uiMenuCalibrateTemperature(struct UI *me);
-static QState uiMenuCalibrateStartTemperature(struct UI *me);
+static QState uiMenuCalibrateTemperatureStart(struct UI *me);
+static QState uiMenuCalibrateTemperatureStarted(struct UI *me);
 static QState uiMenuCalibrateGetTemperature(struct UI *me);
 
 static QState uiMenuMaybeAdjusttime(struct UI *me);
@@ -734,7 +734,7 @@ static QState uiMenuMaybeCalibrate(struct UI *me)
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
-		return Q_TRAN(uiMenuCalibrateTemperature);
+		return Q_TRAN(uiMenuCalibrateTemperatureStart);
 	case BUTTON_UP_PRESS_SIGNAL:
 		ACTION();
 		return Q_TRAN(uiMenuMaybeSettime);
@@ -1183,7 +1183,11 @@ static QState uiMenuCalibrate(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
+		SERIALSTR("uiMenuCalibrate\r\n");
+		me->temperatureWaits = 0;
 		me->cal = BSP_get_calibration();
+		me->ti = INVALIDTI;
+		show_temperature_cal(me);
 		if (me->cal >= MAX_CAL) {
 			lcd_buttons(LCD_BUTTONS_ENTER_DOWN_CANCEL);
 		} else if (me->cal <= MIN_CAL) {
@@ -1225,8 +1229,21 @@ static QState uiMenuCalibrate(struct UI *me)
 			show_temperature_cal(me);
 		}
 		return Q_HANDLED();
+	case Q_EXIT_SIG:
+		/* Save this as an invalid value, so at the next tick
+		   uiGetTemperature() will be forced to update the display. */
+		me->ti = INVALIDTI;
+		return Q_HANDLED();
 	}
 	return Q_SUPER(uiMenu);
+}
+
+
+static uint8_t start_cal(struct UI *me)
+{
+	return BSP_start_temperature_reading(&me->super,
+					     TEMPERATURE_SIGNAL,
+					     temperature_channel);
 }
 
 
@@ -1234,54 +1251,47 @@ static QState uiMenuCalibratePause(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		QActive_armX((QActive*)me, 1, 28);
+		/* Read the temperature fairly often.  We only wait for 3/32
+		   seconds here. */
+		QActive_armX((QActive*)me, 1, 5);
 		return Q_HANDLED();
 	case Q_TIMEOUT1_SIG:
-		return Q_TRAN(uiMenuCalibrateStartTemperature);
-	}
-	return Q_SUPER(uiMenuCalibrate);
-}
-
-
-static QState uiMenuCalibrateTemperature(struct UI *me)
-{
-	switch (Q_SIG(me)) {
-	case Q_ENTRY_SIG:
-		SERIALSTR("uiCP\r\n");
-		show_temperature_cal(me);
 		me->temperatureWaits = 0;
-		return Q_HANDLED();
-	case Q_TIMEOUT1_SIG:
-		return Q_TRAN(uiMenuCalibrateGetTemperature);
-	case Q_EXIT_SIG:
-		/* Save this as an invalid value, so at the next tick
-		   uiGetTemperature() will be forced to update the display. */
-		me->ti = INVALIDTI;
-		return Q_HANDLED();
+		return Q_TRAN(uiMenuCalibrateTemperatureStart);
 	}
 	return Q_SUPER(uiMenuCalibrate);
 }
 
 
-static QState uiMenuCalibrateStartTemperature(struct UI *me)
+static QState uiMenuCalibrateTemperatureStart(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		if (BSP_start_temperature_reading(&me->super,
-						  TEMPERATURE_SIGNAL,
-						  temperature_channel)) {
-			QActive_armX(&me->super, 1, 2);
-			return Q_TRAN(uiMenuCalibrateTemperature);
+		QActive_armX(&me->super, 1, 1);
+		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+		if (start_cal(me)) {
+			return Q_TRAN(uiMenuCalibrateTemperatureStarted);
 		} else {
 			me->temperatureWaits ++;
 			Q_ASSERT( me->temperatureWaits < 10 );
-			QActive_armX(&me->super, 1, 1);
-			return Q_HANDLED();
+			return Q_TRAN(uiMenuCalibrateTemperatureStart);
 		}
-	case Q_TIMEOUT1_SIG:
-		return Q_TRAN(uiMenuCalibrateStartTemperature);
 	}
-	return Q_SUPER(uiMenuCalibrateTemperature);
+	return Q_SUPER(uiMenuCalibrate);
+}
+
+
+static QState uiMenuCalibrateTemperatureStarted(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		QActive_armX(&me->super, 1, 1);
+		return Q_HANDLED();
+	case Q_TIMEOUT1_SIG:
+		return Q_TRAN(uiMenuCalibrateGetTemperature);
+	}
+	return Q_SUPER(uiMenuCalibrate);
 }
 
 
@@ -1289,7 +1299,6 @@ static QState uiMenuCalibrateGetTemperature(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		SERIALSTR("<uiMCGT>\r\n");
 		BSP_get_temperature();
 		/* Only need one tick to get the temperature, since we're
 		   guaranteed to be arriving here very near the start of a tick
@@ -1300,7 +1309,7 @@ static QState uiMenuCalibrateGetTemperature(struct UI *me)
 		SERIALSTR("<okok>");
 		me->ti = Q_PAR(me);
 		show_temperature_cal(me);
-		return Q_TRAN(uiMenuCalibrateTemperature);
+		return Q_TRAN(uiMenuCalibratePause);
 	case Q_TIMEOUT1_SIG:
 		/* Nothing has happened - give up. */
 		SERIALSTR("<BLAH>");
