@@ -68,7 +68,7 @@ static void show_temperature_cal(struct UI *me);
  * Starts with seven spaces so the strings scrolls across starting at the
  * right.  This avoids special case handling of the beginning of the string.
  */
-static const char banner[] = "       \"HOTS'N'COLDS\" - FOR ANDREW AND KATE";
+static const char banner[] = "       \"HOTS AND COLDS\" - FOR ANDREW AND KATE";
 
 
 struct UI ui;
