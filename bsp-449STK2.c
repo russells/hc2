@@ -453,16 +453,16 @@ isr_BASICTIMER(void)
 
 void BSP_enable_morse_line(void)
 {
-	SB(P1DIR, BIT3);
+	SB(LED_DIR, LED_BIT);
 }
 
 
 void BSP_morse_signal(uint8_t onoff)
 {
 	if (onoff) {
-		BSP_led_on();
+		SB(LED_OUT, LED_BIT);
 	} else {
-		BSP_led_off();
+		CB(LED_OUT, LED_BIT);
 	}
 }
 
