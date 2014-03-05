@@ -149,7 +149,7 @@ void QMsm_init(QMsm * const me) {
 #define QEP_EMPTY_SIG_        ((QSignal)0)
 
 /** maximum depth of state nesting (including the top level), must be >= 2 */
-#define QEP_MAX_NEST_DEPTH_   ((uint8_t)5)
+#define QEP_MAX_NEST_DEPTH_   ((uint8_t)6) // Changed 5->6 by Russell
 
 /*..........................................................................*/
 void QHsm_ctor(QHsm * const me, QStateHandler initial) {

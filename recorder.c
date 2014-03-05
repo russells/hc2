@@ -129,12 +129,12 @@ static QState recStartTemperature(struct Recorder *me)
 			return Q_TRAN(recStartedTemperature);
 		} else {
 			SERIALSTR("-");
-			// Starting temperature reading failed
+			/* Starting temperature reading failed.  Waiting 10
+			   times seems to be too short, so wait 20. */
 			me->temperatureWaits ++;
-			// Wait one tick before trying again
-			Q_ASSERT( me->temperatureWaits < 10 );
-			QActive_armX(&me->super, 1, 1);
-			// Re-enter here and try again.
+			Q_ASSERT( me->temperatureWaits < 20 );
+			/* Re-enter here and wait one tick before trying
+			   again */
 			return Q_TRAN(recStartTemperature);
 		}
 	}

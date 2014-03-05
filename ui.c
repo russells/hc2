@@ -50,7 +50,9 @@ static QState uiMenuSettimeMinutes(struct UI *me);
 static QState uiMenuSettimeMinutesFlash(struct UI *me);
 
 static QState uiMenuMaybeCalibrate(struct UI *me);
+static QState uiMenuCalibrate(struct UI *me);
 static QState uiMenuCalibratePause(struct UI *me);
+static QState uiMenuCalibrateDeferExit(struct UI *me);
 static QState uiMenuCalibrateTemperatureStart(struct UI *me);
 static QState uiMenuCalibrateTemperatureStarted(struct UI *me);
 static QState uiMenuCalibrateGetTemperature(struct UI *me);
@@ -79,6 +81,25 @@ void ui_ctor(void)
 	QActive_ctor((QActive*)(&ui), (QStateHandler)(&uiInitial));
 	ui.ti = INVALIDTI;
 	ui.cal = get_calibration();
+	ui.deferredSignal = 0;
+	ui.deferredParam = 0;
+}
+
+
+static void defer(struct UI *me)
+{
+	me->deferredSignal = Q_SIG(me);
+	me->deferredParam = Q_PAR(me);
+}
+
+
+static void recall(struct UI *me)
+{
+	if (me->deferredSignal) {
+		QActive_post(&me->super, me->deferredSignal, me->deferredParam);
+		me->deferredSignal = 0;
+		me->deferredParam = 0;
+	}
 }
 
 
@@ -1239,6 +1260,19 @@ static QState uiMenuCalibrate(struct UI *me)
 }
 
 
+static QState uiMenuCalibrateDeferExit(struct UI *me)
+{
+	switch (Q_SIG(me)) {
+	case BUTTON_ENTER_PRESS_SIGNAL:
+	case BUTTON_CANCEL_PRESS_SIGNAL:
+	case Q_TIMEOUT2_SIG:
+		defer(me);
+		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenuCalibrate);
+}
+
+
 static uint8_t start_cal(struct UI *me)
 {
 	return BSP_start_temperature_reading(&me->super,
@@ -1251,8 +1285,15 @@ static QState uiMenuCalibratePause(struct UI *me)
 {
 	switch (Q_SIG(me)) {
 	case Q_ENTRY_SIG:
-		/* Read the temperature fairly often.  We only wait for 3/32
-		   seconds here. */
+		/* Process any event that will cause an exit out of calibration
+		   mode that we got while we were away doing the ADC
+		   processing. */
+		recall(me);
+		/* Read the temperature fairly often.  We only wait for 5/32
+		   seconds here.  We must wait for more than one tick so that
+		   the recorder, which has a lower priority, gets a chance to
+		   process its own ticks before ours and hence get the ADC when
+		   required. */
 		QActive_armX((QActive*)me, 1, 5);
 		return Q_HANDLED();
 	case Q_TIMEOUT1_SIG:
@@ -1278,7 +1319,7 @@ static QState uiMenuCalibrateTemperatureStart(struct UI *me)
 			return Q_TRAN(uiMenuCalibrateTemperatureStart);
 		}
 	}
-	return Q_SUPER(uiMenuCalibrate);
+	return Q_SUPER(uiMenuCalibrateDeferExit);
 }
 
 
@@ -1291,7 +1332,7 @@ static QState uiMenuCalibrateTemperatureStarted(struct UI *me)
 	case Q_TIMEOUT1_SIG:
 		return Q_TRAN(uiMenuCalibrateGetTemperature);
 	}
-	return Q_SUPER(uiMenuCalibrate);
+	return Q_SUPER(uiMenuCalibrateDeferExit);
 }
 
 
@@ -1315,9 +1356,11 @@ static QState uiMenuCalibrateGetTemperature(struct UI *me)
 		SERIALSTR("<BLAH>");
 		return Q_TRAN(uiMenuCalibratePause);
 	}
-	return Q_SUPER(uiMenuCalibrate);
+	return Q_SUPER(uiMenuCalibrateDeferExit);
 }
 
+
+// -------- functions for time adjustment -----------
 
 #include "ui-rtc-adj.inc"
 

@@ -40,6 +40,21 @@ struct UI {
 	 * Count the number of times we try to get the temperature reading.
 	 */
 	uint8_t temperatureWaits;
+
+	/**
+	 * Hold a deferred signal.
+	 *
+	 * There is at least one place where we need to defer an event - when
+	 * certain button presses are received and we have the ADC locked.
+	 * This allows us to hold that event until it can be safely processed
+	 * later.
+	 */
+	QSignal deferredSignal;
+
+	/**
+	 * @see deferredSignal
+	 */
+	QParam deferredParam;
 };
 
 
