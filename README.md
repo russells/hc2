@@ -1,5 +1,7 @@
 # "Hots and Colds thermometer."
 
+![HC](./HC.png)
+
 Displays temperature as
 
  * 20C = "NORMAL"
