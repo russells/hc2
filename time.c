@@ -3,7 +3,7 @@
 #include "bsp.h"
 #include "truefalse.h"
 
-Q_DEFINE_THIS_MODULE("t");
+Q_DEFINE_THIS_MODULE("TIME");
 
 /**
  *

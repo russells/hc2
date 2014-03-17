@@ -123,6 +123,15 @@ enum HcSignals {
 };
 
 
+#define ASSERTION_BUFFER_MSG_SIZE 8 /* Sized for the LCD (7 chars + \0). */
+
+struct AssertionBuffer {
+	char valid[2];
+	int line;
+	char msg[ASSERTION_BUFFER_MSG_SIZE];
+};
+
+
 #define post(me_,sig_,par_)                                            \
 	do {							       \
 		const QActive *ao = (QActive*)me_;		       \

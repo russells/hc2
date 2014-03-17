@@ -49,5 +49,9 @@ void BSP_restart_seconds(void);
 void BSP_add_8th_second(void);
 void BSP_sub_8th_second(void);
 
+struct AssertionBuffer;		/* No need to include hc.h here. */
+void BSP_set_assertion_buffer(struct AssertionBuffer *assertion_buffer);
+const struct AssertionBuffer *BSP_get_assertion_buffer(void);
+
 #endif
 

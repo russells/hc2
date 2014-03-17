@@ -13,7 +13,7 @@
 #include "truefalse.h"
 
 
-Q_DEFINE_THIS_MODULE("b");
+Q_DEFINE_THIS_MODULE("BSP");
 
 
 #include "bsp-449STK2.h"
@@ -51,9 +51,19 @@ static volatile uint8_t fast_timer_1 = 0;
 static volatile uint8_t fast_timer_2 = 0;
 
 
+static struct AssertionBuffer *assertion_buffer;
+
+
 void Q_onAssert(char const Q_ROM * const Q_ROM_VAR file, int line)
 {
 	BSP_stop_everything();
+	assertion_buffer->valid[0] = '\0';
+	assertion_buffer->valid[1] = '\0';
+	assertion_buffer->line = line;
+	strncpy(assertion_buffer->msg, file, ASSERTION_BUFFER_MSG_SIZE);
+	assertion_buffer->msg[ASSERTION_BUFFER_MSG_SIZE - 1] = '\0';
+	assertion_buffer->valid[0] = 'A';
+	assertion_buffer->valid[1] = 'B';
 	serial_drain();
 	serial_send("ASSERT: ");
 	serial_send(file);
@@ -880,4 +890,25 @@ void BSP_save_adjustment(int16_t adj)
 {
 	adjustment = adj;
 	save_nums(calibration, adj);
+}
+
+
+void BSP_set_assertion_buffer(struct AssertionBuffer *buf)
+{
+	assertion_buffer = buf;
+	if (assertion_buffer->valid[0] != 'A'
+	    || assertion_buffer->valid[1] != 'B') {
+		assertion_buffer->valid[0] = '\0';
+		assertion_buffer->valid[1] = '\0';
+		assertion_buffer->line = 0;
+		for (uint8_t i=0; i< ASSERTION_BUFFER_MSG_SIZE; i++) {
+			assertion_buffer->msg[i] = '\0';
+		}
+	}
+}
+
+
+const struct AssertionBuffer *BSP_get_assertion_buffer(void)
+{
+	return assertion_buffer;
 }

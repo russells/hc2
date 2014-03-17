@@ -7,7 +7,7 @@
 #include "serial.h"
 #include "truefalse.h"
 
-Q_DEFINE_THIS_MODULE("rec");
+Q_DEFINE_THIS_MODULE("REC");
 
 
 struct Recorder recorder;

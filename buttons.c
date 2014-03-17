@@ -4,7 +4,7 @@
 #include "serial.h"
 
 
-Q_DEFINE_THIS_MODULE("btn");
+Q_DEFINE_THIS_MODULE("BTN");
 
 
 static QState buttons_initial(struct Buttons *me);

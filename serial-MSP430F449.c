@@ -2,7 +2,7 @@
 #include "bsp-449STK2.h"
 
 
-Q_DEFINE_THIS_FILE;
+Q_DEFINE_THIS_MODULE("SER");;
 
 
 #define SEND_BUFFER_SIZE 920

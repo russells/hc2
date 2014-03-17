@@ -16,7 +16,7 @@
  * implement time setting and perhaps other things in the clock.
  */
 
-Q_DEFINE_THIS_MODULE("r");
+Q_DEFINE_THIS_MODULE("RTC");
 
 
 static QState initial(struct RTC *me);

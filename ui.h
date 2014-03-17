@@ -55,6 +55,12 @@ struct UI {
 	 * @see deferredSignal
 	 */
 	QParam deferredParam;
+
+	/**
+	 * Incremented to decide when to show the last assertion in a "secret"
+	 * menu item.
+	 */
+	uint8_t assertionMenuCounter;
 };
 
 

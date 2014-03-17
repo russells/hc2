@@ -32,6 +32,19 @@ Q_ASSERT_COMPILE( QF_MAX_ACTIVE == Q_DIM(QF_active) - 1 );
 
 int main(void)
 {
+	/**
+	 * Reserve this space for recording assertions.  We don't touch this
+	 * memory here, and assume that it will be in the same place on every
+	 * run, and that it isn't cleared by hardware or by startup code.  If
+	 * those are true, then after a reset caused by an assertion, it will
+	 * contain the values as filled in by QF_onAssert() at the end of the
+	 * previous run (before the reset).
+	 *
+	 * FIXME: test the assumptions.  Also test hardware reset.
+	 */
+	struct AssertionBuffer assertion_buffer;
+	BSP_set_assertion_buffer(&assertion_buffer);
+
  startmain:
 	BSP_init();
 	serial_init();

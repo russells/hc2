@@ -17,7 +17,7 @@
 #include "truefalse.h"
 
 
-Q_DEFINE_THIS_MODULE("u");
+Q_DEFINE_THIS_MODULE("UI");
 
 
 static QState uiInitial(struct UI *me);
@@ -59,6 +59,8 @@ static QState uiMenuCalibrateGetTemperature(struct UI *me);
 
 static QState uiMenuMaybeAdjusttime(struct UI *me);
 static QState uiMenuAdjusttime(struct UI *me);
+
+static QState uiMenuShowAssertion(struct UI *me);
 
 static void show_temperature(int16_t t);
 static void show_temperature_cal(struct UI *me);
@@ -773,6 +775,7 @@ static QState uiMenuMaybeAdjusttime(struct UI *me)
 	case Q_ENTRY_SIG:
 		lcd_buttons(LCD_BUTTONS_ENTER_UP_CANCEL);
 		lcd_showstring("ADJTIME");
+		me->assertionMenuCounter = 0;
 		return Q_HANDLED();
 	case BUTTON_ENTER_PRESS_SIGNAL:
 		ACTION();
@@ -782,6 +785,10 @@ static QState uiMenuMaybeAdjusttime(struct UI *me)
 		return Q_TRAN(uiMenuMaybeCalibrate);
 	case BUTTON_DOWN_PRESS_SIGNAL:
 		ACTION();
+		me->assertionMenuCounter ++;
+		if (me->assertionMenuCounter >= 7) {
+			return Q_TRAN(uiMenuShowAssertion);
+		}
 		return Q_HANDLED();
 	}
 	return Q_SUPER(uiMenu);
@@ -1420,6 +1427,48 @@ static QState uiMenuAdjusttime(struct UI *me)
 			lcd_buttons(LCD_BUTTONS_ENTER_UP_CANCEL);
 		}
 		return Q_HANDLED();
+	}
+	return Q_SUPER(uiMenu);
+}
+
+
+static QState uiMenuShowAssertion(struct UI *me)
+{
+	const struct AssertionBuffer *ab;
+
+	switch (Q_SIG(me)) {
+	case Q_ENTRY_SIG:
+		me->assertionMenuCounter = 0;
+		lcd_buttons(LCD_BUTTON_CANCEL);
+		ab = BSP_get_assertion_buffer();
+		if (ab->valid[0] != 'A' || ab->valid[1] != 'B') {
+			lcd_colon(0);
+			lcd_showdigits("0000");
+			lcd_showstring("---NONE");
+		} else {
+			char linestring[5];
+			lcd_colon(0);
+			snprintf(linestring, 5, "%4d", ab->line);
+			lcd_showdigits(linestring);
+			/* Assume that ab->msg is sized correctly for the
+			   LCD. */
+			lcd_showstring(ab->msg);
+		}
+		return Q_HANDLED();
+	case TIME_SIGNAL:
+		return Q_HANDLED();
+	case BUTTON_ENTER_PRESS_SIGNAL:
+	case BUTTON_ENTER_REPEAT_SIGNAL:
+	case BUTTON_UP_PRESS_SIGNAL:
+	case BUTTON_UP_REPEAT_SIGNAL:
+	case BUTTON_DOWN_REPEAT_SIGNAL:
+		return Q_HANDLED();
+	case BUTTON_DOWN_PRESS_SIGNAL:
+		me->assertionMenuCounter ++;
+		Q_ASSERT( me->assertionMenuCounter < 37 );
+		return Q_HANDLED();
+	case BUTTON_CANCEL_PRESS_SIGNAL:
+		return Q_TRAN(uiRun);
 	}
 	return Q_SUPER(uiMenu);
 }
